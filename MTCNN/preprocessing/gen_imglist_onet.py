@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as npr
 import os
 
-data_dir = '../../DATA/'
+data_dir = '../../MTCNN_DATA/dataset'
 #anno_file = os.path.join(data_dir, "anno.txt")
 
 size = 48
@@ -26,11 +26,11 @@ with open(os.path.join(data_dir, '%s/part_%s.txt' % (size, size)), 'r') as f:
 with open(os.path.join(data_dir, '%s/landmark_%s_aug.txt' % (size, size)), 'r') as f:
     landmark = f.readlines()
   
-dir_path = os.path.join(data_dir, 'imglists',"ONet")
+dir_path = os.path.join(data_dir, 'imglists')
 if not os.path.exists(dir_path):
     os.makedirs(dir_path)
 #write all data
-with open(os.path.join(dir_path, "train_%s_landmark.txt" % (net)), "w") as f:
+with open(os.path.join(dir_path, "%s" % (net), "train_%s_landmark.txt" % (net)), "w") as f:
     print(len(neg))
     print(len(pos))
     print(len(part))

@@ -28,7 +28,7 @@ def dense_to_one_hot(labels_dense,num_classes):
 def cls_ohem(cls_prob, label):
     zeros = tf.zeros_like(label)
     #label=-1 --> label=0net_factory
-
+    #original laber for pos 1,part -1,neg 0
     #pos -> 1, neg -> 0, others -> 0
     label_filter_invalid = tf.where(tf.less(label,0), zeros, label)
     num_cls_prob = tf.size(cls_prob)
@@ -39,8 +39,10 @@ def cls_ohem(cls_prob, label):
     #row = [0,2,4.....]
     row = tf.range(num_row)*2
     indices_ = row + label_int
+    # see my notebook to know how to calculate the loss
     label_prob = tf.squeeze(tf.gather(cls_prob_reshape, indices_))
     loss = -tf.log(label_prob+1e-10)
+
     zeros = tf.zeros_like(label_prob, dtype=tf.float32)
     ones = tf.ones_like(label_prob,dtype=tf.float32)
     # set pos and neg to be 1, rest to be 0
@@ -85,7 +87,6 @@ def bbox_ohem_orginal(bbox_pred,bbox_target,label):
 
 #label=1 or label=-1 then do regression
 
-##????????????????  question 1 label的维度是怎么样的，标签内容
 
 def bbox_ohem(bbox_pred,bbox_target,label):
     '''
@@ -174,20 +175,24 @@ def _activation_summary(x):
     print('load summary for : ',tensor_name)
     tf.summary.histogram(tensor_name + '/activations',x)
     #tf.summary.scalar(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
-#coded by keras
+# keras model
 def P_NET(inputs,label=None,bbox_target=None,landmark_target=None,training=True):
-
-    net=layers.Conv2D(10,kernel_size=3,strides=1,activation=prelu)(inputs)
-    net=layers.MaxPool2D(2)(net)
-    net=layers.Conv2D(16,kernel_size=3,strides=1,activation=prelu)(net)
-    net=layers.Conv2D(32,kernel_size=3,strides=1,activation=prelu)(net)
-
-    conv4_1=layers.Conv2D(2,kernel_size=1,strides=1,activation='softmax')(net)
-
-    bbox_pred = layers.Conv2D(4, kernel_size=1,strides=1)(net)
-
-    landmark_pred = layers.Conv2D(10,kernel_size=1,strides=1)(net)
-
+    net_inputs=keras.Input(tensor=inputs)
+    with tf.variable_scope("conv1"):
+        net=layers.Conv2D(10,kernel_size=3,strides=1,activation=prelu,padding="valid",kernel_regularizer=keras.regularizers.l1(0.0005))(net_inputs)
+    with tf.variable_scope("pool1"):
+        net=layers.MaxPool2D(2,padding="same")(net)
+    with tf.variable_scope("conv2"):
+        net=layers.Conv2D(16,kernel_size=3,strides=1,activation=prelu,padding="valid")(net)
+    with tf.variable_scope("conv3"):
+        net=layers.Conv2D(32,kernel_size=3,strides=1,activation=prelu,padding="valid")(net)
+    with tf.variable_scope("conv4_1"):
+        conv4_1=layers.Conv2D(2,kernel_size=1,strides=1,activation='softmax',padding="valid")(net)
+    with tf.variable_scope("conv4_2"):
+        bbox_pred = layers.Conv2D(4, kernel_size=1,strides=1,padding="valid")(net)
+    with tf.variable_scope("conv4_3"):
+        landmark_pred = layers.Conv2D(10,kernel_size=1,strides=1,padding="valid")(net)
+    model=Model(net_inputs,outputs=[conv4_1,bbox_pred,landmark_pred])
     if training:
         cls_prob = tf.squeeze(conv4_1, [1, 2], name='cls_prob')
         cls_loss = cls_ohem(cls_prob, label)
@@ -201,10 +206,11 @@ def P_NET(inputs,label=None,bbox_target=None,landmark_target=None,training=True)
 
         accuracy = cal_accuracy(cls_prob, label)
         # L2_loss = tf.add_n(slim.losses.get_regularization_losses())
-        L2_loss=0
+        temp=tf.add_n(model.losses)
+        L2_loss=tf.reduce_sum(temp)
         return cls_loss, bbox_loss, landmark_loss, L2_loss, accuracy
 
-#construct Pnet
+#construct Pnet by slim
 #label:batch
 def P_Net(inputs,label=None,bbox_target=None,landmark_target=None,training=True):
     #define common param
@@ -257,7 +263,6 @@ def P_Net(inputs,label=None,bbox_target=None,landmark_target=None,training=True)
         if training:
             #batch*2
             # calculate classification loss
-            #????? squeeze how complish
             cls_prob = tf.squeeze(conv4_1,[1,2],name='cls_prob')
             cls_loss = cls_ohem(cls_prob,label)
             #batch

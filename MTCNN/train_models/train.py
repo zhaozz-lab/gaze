@@ -127,7 +127,7 @@ def train(net_factory, prefix, end_epoch, base_dir,
         part_dir = os.path.join(base_dir,'part_landmark.tfrecord_shuffle')
         neg_dir = os.path.join(base_dir,'neg_landmark.tfrecord_shuffle')
         #landmark_dir = os.path.join(base_dir,'landmark_landmark.tfrecord_shuffle')
-        landmark_dir = os.path.join('../../DATA/imglists/RNet','landmark_landmark.tfrecord_shuffle')
+        landmark_dir = os.path.join('../../MTCNN_DATA/DATA/imglists/RNet','landmark_landmark.tfrecord_shuffle')
         dataset_dirs = [pos_dir,part_dir,neg_dir,landmark_dir]
         pos_radio = 1.0/6;part_radio = 1.0/6;landmark_radio=1.0/6;neg_radio=3.0/6
         pos_batch_size = int(np.ceil(config.BATCH_SIZE*pos_radio))
@@ -182,7 +182,13 @@ def train(net_factory, prefix, end_epoch, base_dir,
     tf.summary.scalar("cls_accuracy",accuracy_op)#cls_acc
     tf.summary.scalar("total_loss",total_loss_op)#cls_loss, bbox loss, landmark loss and L2 loss add together
     summary_op = tf.summary.merge_all()
-    SUMMARY_DIR = "../data/logs/%s" %(net)
+    SUMMARY_DIR = "../../MTCNN_DATA/data2"
+    if not os.path.exists(SUMMARY_DIR):
+        os.mkdir(SUMMARY_DIR)
+    SUMMARY_DIR=SUMMARY_DIR+'/logs'
+    if not os.path.exists(SUMMARY_DIR):
+        os.mkdir(SUMMARY_DIR)
+    SUMMARY_DIR=SUMMARY_DIR+'/%s'%(net)
     if not os.path.exists(SUMMARY_DIR):
         os.mkdir(SUMMARY_DIR)
     writer = tf.summary.FileWriter(SUMMARY_DIR,sess.graph)

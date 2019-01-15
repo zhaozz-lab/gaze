@@ -6,7 +6,7 @@ import time
 
 import tensorflow as tf
 
-from prepare_data.tfrecord_utils import _process_image_withoutcoder, _convert_to_example_simple
+from preprocessing.tfrecord_utils import _process_image_withoutcoder, _convert_to_example_simple
 
 
 def _add_to_tfrecord(filename, image_example, tfrecord_writer):
@@ -123,7 +123,7 @@ def get_dataset(dir, net='PNet'):
 
 
 if __name__ == '__main__':
-    dir = '../../DATA/'
-    net = '48'
-    output_directory = '../../DATA/imglists/ONet'
+    dir = '../../MTCNN_DATA/dataset/'
+    net = 'ONet'
+    output_directory = '../../MTCNN_DATA/dataset/imglists/ONet'
     run(dir, net, output_directory, shuffling=True)

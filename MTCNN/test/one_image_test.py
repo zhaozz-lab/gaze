@@ -5,7 +5,7 @@ from Detection.MtcnnDetector import MtcnnDetector
 from Detection.detector import Detector
 from Detection.fcn_detector import FcnDetector
 from train_models.mtcnn_model import P_Net, R_Net, O_Net
-from prepare_data.loader import TestLoader
+from preprocessing.loader import TestLoader
 import cv2
 import os
 import numpy as np
@@ -16,7 +16,9 @@ stride = 2
 slide_window = False
 shuffle = False
 detectors = [None, None, None]
-prefix = ['../data/MTCNN_model/PNet_No_landmark/PNet', '../data/MTCNN_model/RNet_landmark/RNet', '../data/MTCNN_model/ONet_landmark/ONet']
+prefix = ['../../MTCNN_DATA/model_data/MTCNN_model/PNet_landmark/PNet',
+          '../../MTCNN_DATA/model_data/MTCNN_model/RNet_landmark/RNet',
+          '../../MTCNN_DATA/model_data/MTCNN_model/ONet_landmark/ONet']
 epoch = [30, 14, 16]
 batch_size = [2048, 64, 16]
 model_path = ['%s-%s' % (x, y) for x, y in zip(prefix, epoch)]
@@ -44,9 +46,10 @@ gt_imdb = []
 #imdb_ = dict()"
 #imdb_['image'] = im_path
 #imdb_['label'] = 5
-path = "../../DATA/test/lfpw_testImage"
+path = "../../MTCNN_DATA/dataset/FLW/test/lfpw_testImage"
 for item in os.listdir(path):
     gt_imdb.append(os.path.join(path,item))
+gt_imdb=gt_imdb[:1]
 test_data = TestLoader(gt_imdb)
 
 
@@ -57,24 +60,20 @@ for imagepath in gt_imdb:
     print(imagepath)
     image = cv2.imread(imagepath)
     for bbox in all_boxes[count]:
+        bbox[4]=0.4535
         cv2.putText(image,str(np.round(bbox[4],2)),(int(bbox[0]),int(bbox[1])),cv2.FONT_HERSHEY_TRIPLEX,1,color=(255,0,255))
         cv2.rectangle(image, (int(bbox[0]),int(bbox[1])),(int(bbox[2]),int(bbox[3])),(0,0,255))
-
     '''
         for landmark in landmarks[count]:
-
+        
         for i in range(len(landmark)//2):
             cv2.circle(image, (int(landmark[2*i]),int(int(landmark[2*i+1]))), 3, (0,0,255))
     '''
+    # cv2.imwrite("result_landmark/%d.png" %(count),image)
 
-        
     count = count + 1
-    #cv2.imwrite("result_landmark/%d.png" %(count),image)
-    cv2.imshow("lala",image)
-    cv2.waitKey(0)    
-
-
-
+    cv2.imshow(str(count),image)
+    cv2.waitKey(0)
 
 
 '''

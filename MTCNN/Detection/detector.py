@@ -16,7 +16,7 @@ class Detector(object):
                 config=tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True)))
             saver = tf.train.Saver()
             #check whether the dictionary is valid
-            model_dict = '/'.join(model_path.split('/')[:-1])
+            model_dict = '/'.join(model_path.split('/')[:-1])+'/'
             ckpt = tf.train.get_checkpoint_state(model_dict)
             print(model_path)
             readstate = ckpt and ckpt.model_checkpoint_path

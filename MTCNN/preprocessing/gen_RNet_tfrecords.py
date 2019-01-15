@@ -6,7 +6,7 @@ import time
 
 import tensorflow as tf
 
-from prepare_data.tfrecord_utils import _process_image_withoutcoder, _convert_to_example_simple
+from preprocessing.tfrecord_utils import _process_image_withoutcoder, _convert_to_example_simple
 
 
 def _add_to_tfrecord(filename, image_example, tfrecord_writer):
@@ -70,7 +70,7 @@ def run(dataset_dir, net, output_dir, name='MTCNN', shuffling=False):
     print('\nFinished converting the MTCNN dataset!')
 
 
-def get_dataset(dir, name, net='PNet'):
+def get_dataset(dir, net='PNet'):
     '''
 
     :param dir: directory of the raw data
@@ -79,7 +79,7 @@ def get_dataset(dir, name, net='PNet'):
     '''
     #item = 'imglists/PNet/train_%s_raw.txt' % net
     #item = 'imglists/PNet/train_%s_landmark.txt' % net
-    item = '%s/%s_24.txt' % (net,name)
+    item = '%s/%s_24.txt' % (net,net)
 
     dataset_dir = os.path.join(dir, item)
     print('dataset dir is :', dataset_dir)
@@ -130,10 +130,9 @@ def get_dataset(dir, name, net='PNet'):
 
 
 if __name__ == '__main__':
-    dir = '../../DATA'
-    net = 'no_LM24'
-    output_directory = '../../DATA/imglists_noLM/RNet'
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-    name = 'part'
+
+    dir = '../../MTCNN_DATA/dataset/'
+    net = 'RNet'
+    output_directory = '../../MTCNN_DATA/dataset/imglists/RNet'
+    name='part'
     run(dir, net, output_directory,name, shuffling=True)

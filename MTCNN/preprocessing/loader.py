@@ -1,10 +1,8 @@
 import numpy as np
-import prepare_data.minibatch
+import preprocessing.minibatch
 import sys
 import cv2
-sys.path.append("../")
 from train_models.MTCNN_config import config
-
 
 class TestLoader:
     #imdb image_path(list)

@@ -5,9 +5,9 @@ import numpy as np
 import numpy.random as npr
 from utils import IoU
 
-anno_file = "../DATA/WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt"
-im_dir = "../DATA/WIDER_train/images"
-save_dir = "../DATA/12"
+anno_file = "../../MTCNN_DATA/dataset/WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt"
+im_dir = "../../MTCNN_DATA/dataset/WIDER_train/images"
+save_dir = "../../MTCNN_DATA/dataset/12"
 save_dir_ppn=["positive","part","negative"]
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
@@ -74,7 +74,7 @@ while(count<=num):
             # Iou with all gts must below 0.3
 
             save_file = os.path.join(save_dir, "%s/%s.jpg"%(save_dir_ppn[2],n_idx))
-            f2.write("../DATA/12/negative/%s.jpg"%n_idx + ' 0\n')
+            f2.write("../../MTCNN_DATA/dataset/12/negative/%s.jpg"%n_idx + ' 0\n')
             cv2.imwrite(save_file, resized_im)
             n_idx += 1
             neg_num += 1
@@ -116,7 +116,7 @@ while(count<=num):
             if np.max(Iou) < 0.3:
                 # Iou with all gts must below 0.3
                 save_file = os.path.join(save_dir, "%s/%s.jpg"%(save_dir_ppn[2],n_idx))
-                f2.write("../DATA/12/negative/%s.jpg" % n_idx + ' 0\n')
+                f2.write("../../MTCNN_DATA/dataset/12/negative/%s.jpg" % n_idx + ' 0\n')
                 cv2.imwrite(save_file, resized_im)
                 n_idx += 1
 
@@ -161,12 +161,12 @@ while(count<=num):
             iou = IoU(crop_box, box_)
             if iou  >= 0.65:
                 save_file = os.path.join(save_dir, "%s/%s.jpg"%(save_dir_ppn[0],p_idx))
-                f1.write("../DATA/12/positive/%s.jpg"%p_idx + ' 1 %.2f %.2f %.2f %.2f\n'%(offset_x1, offset_y1, offset_x2, offset_y2))
+                f1.write("../../MTCNN_DATA/dataset/12/positive/%s.jpg"%p_idx + ' 1 %.2f %.2f %.2f %.2f\n'%(offset_x1, offset_y1, offset_x2, offset_y2))
                 cv2.imwrite(save_file, resized_im)
                 p_idx += 1
             elif iou >= 0.4:
                 save_file = os.path.join(save_dir, "%s/%s.jpg"%(save_dir_ppn[1],d_idx))
-                f3.write("../DATA/12/part/%s.jpg"%d_idx + ' -1 %.2f %.2f %.2f %.2f\n'%(offset_x1, offset_y1, offset_x2, offset_y2))
+                f3.write("../../MTCNN_DATA/dataset/12/part/%s.jpg"%d_idx + ' -1 %.2f %.2f %.2f %.2f\n'%(offset_x1, offset_y1, offset_x2, offset_y2))
                 cv2.imwrite(save_file, resized_im)
                 d_idx += 1
         box_idx += 1

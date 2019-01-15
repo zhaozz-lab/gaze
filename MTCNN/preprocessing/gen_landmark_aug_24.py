@@ -5,14 +5,14 @@ import math
 from os.path import join, exists
 import cv2
 import numpy as np
-from prepare_data.BBox_utils import getDataFromTxt,processImage,shuffle_in_unison_scary,BBox
-from prepare_data.Landmark_utils import show_landmark,rotate,flip
+from preprocessing.BBox_utils import getDataFromTxt,processImage,shuffle_in_unison_scary,BBox
+from preprocessing.Landmark_utils import show_landmark,rotate,flip
 import random
 import tensorflow as tf
 import sys
 import numpy.random as npr
-dstdir = "../../DATA/24/train_RNet_landmark_aug"
-OUTPUT = '../../DATA/24'
+dstdir = "../../MTCNN_DATA/dataset/24/train_RNet_landmark_aug"
+OUTPUT = '../../MTCNN_DATA/dataset/24'
 if not exists(OUTPUT): os.mkdir(OUTPUT)
 if not exists(dstdir): os.mkdir(dstdir)
 assert(exists(dstdir) and exists(OUTPUT))
@@ -57,7 +57,7 @@ def GenerateData(ftxt, output,net,argument=False):
         return
     image_id = 0
     f = open(join(OUTPUT,"landmark_%s_aug.txt" %(size)),'w')
-    data = getDataFromTxt(ftxt)
+    data = getDataFromTxt(ftxt,data_path = '../../MTCNN_DATA/dataset/FLW/train')
     idx = 0
     #image_path bbox landmark(5*2)
     for (imgPath, bbox, landmarkGt) in data:
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     # train data
     net = "RNet"
     #train_txt = "train.txt"
-    train_txt = "trainImageList.txt"
+    train_txt = "../../MTCNN_DATA/dataset/FLW/train/trainImageList.txt"
     imgs,landmarks = GenerateData(train_txt, OUTPUT,net,argument=True)
     
    

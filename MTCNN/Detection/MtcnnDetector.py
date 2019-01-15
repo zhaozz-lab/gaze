@@ -3,7 +3,6 @@ import time
 import numpy as np
 import sys
 
-sys.path.append("../")
 from train_models.MTCNN_config import config
 from Detection.nms import py_nms
 
@@ -108,6 +107,7 @@ class MtcnnDetector(object):
 
         reg = np.array([dx1, dy1, dx2, dy2])
         score = cls_map[t_index[0], t_index[1]]
+        # to get the coordiante in the original image  and size of PNet is 12
         boundingbox = np.vstack([np.round((stride * t_index[1]) / scale),
                                  np.round((stride * t_index[0]) / scale),
                                  np.round((stride * t_index[1] + cellsize) / scale),
@@ -248,8 +248,7 @@ class MtcnnDetector(object):
         bbw = all_boxes[:, 2] - all_boxes[:, 0] + 1
         bbh = all_boxes[:, 3] - all_boxes[:, 1] + 1
 
-        # refine the boxes
-        # ???????     question 3  all_boxes的维度如何
+        # refine the boxes using the reg
         boxes_c = np.vstack([all_boxes[:, 0] + all_boxes[:, 5] * bbw,
                              all_boxes[:, 1] + all_boxes[:, 6] * bbh,
                              all_boxes[:, 2] + all_boxes[:, 7] * bbw,
@@ -423,7 +422,7 @@ class MtcnnDetector(object):
             batch_idx += 1
             if batch_idx % 100 == 0:
                 c_time = (time.time() - s_time )/100
-                print("%d out of %d images done" % (batch_idx ,test_data.size))
+                print("%d/%d images done" % (batch_idx ,test_data.size))
                 print('%f seconds for each image' % c_time)
                 s_time = time.time()
 
@@ -433,11 +432,11 @@ class MtcnnDetector(object):
 
 
             if self.pnet_detector:
-                st = time.time()
+                t = time.time()
                 # ignore landmark
                 boxes, boxes_c, landmark = self.detect_pnet(im)
 
-                t1 = time.time() - st
+                t1 = time.time() - t
                 sum_time += t1
                 t1_sum += t1
                 if boxes_c is None:
@@ -482,9 +481,8 @@ class MtcnnDetector(object):
             landmark = [1]
             landmarks.append(landmark)
         print('num of images', num_of_img)
-        print("time cost in average" +
-            '{:.3f}'.format(sum_time/num_of_img) +
-            '  pnet {:.3f}  rnet {:.3f}  onet {:.3f}'.format(t1_sum/num_of_img, t2_sum/num_of_img,t3_sum/num_of_img))
+        print("time cost in average" +'{:.3f}'.format(sum_time/num_of_img) +
+              '  pnet {:.3f}  rnet {:.3f}  onet {:.3f}'.format(t1_sum/num_of_img, t2_sum/num_of_img,t3_sum/num_of_img))
 
 
         # num_of_data*9,num_of_data*10

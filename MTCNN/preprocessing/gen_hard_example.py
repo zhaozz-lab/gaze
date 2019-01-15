@@ -2,19 +2,17 @@
 import sys
 from utils import convert_to_square
 
-sys.path.insert(0,'..')
 import numpy as np
 import argparse
 import os
 import pickle as pickle
 import cv2
-from train_models.mtcnn_model import P_Net, R_Net, O_Net
+from mtcnn_model import P_Net, R_Net, O_Net
 from train_models.MTCNN_config import config
-from prepare_data.loader import TestLoader
+from loader import TestLoader
 from Detection.detector import Detector
 from Detection.fcn_detector import FcnDetector
 from Detection.MtcnnDetector import MtcnnDetector
-# preprocessing
 from utils import *
 from data_utils import *
 #net : 24(RNet)/48(ONet)
@@ -23,22 +21,22 @@ def save_hard_example(net, data,save_path):
     # load ground truth from annotation file
     # format of each line: image/path [x1,y1,x2,y2] for each gt_box in this image
 
-    im_idx_list = data['images']
+    im_idx_list = data['images'][:5]
     # print(images[0])
-    gt_boxes_list = data['bboxes']
+    gt_boxes_list = data['bboxes'][:5]
     num_of_images = len(im_idx_list)
 
     print("processing %d images in total" % num_of_images)
 
-    
+    save_dir = '/'.join(save_path.strip().split('/')[:-1])
     # save files
-    neg_label_file = "../DATA/no_LM%d/neg_%d.txt" % (net, image_size)
+    neg_label_file = save_dir+"/neg_%d.txt" % (image_size)
     neg_file = open(neg_label_file, 'w')
 
-    pos_label_file = "../DATA/no_LM%d/pos_%d.txt" % (net, image_size)
+    pos_label_file = save_dir+"/pos_%d.txt" % (image_size)
     pos_file = open(pos_label_file, 'w')
 
-    part_label_file = "../DATA/no_LM%d/part_%d.txt" % (net, image_size)
+    part_label_file = save_dir+"/part_%d.txt" % (image_size)
     part_file = open(part_label_file, 'w')
     #read detect result
     det_boxes = pickle.load(open(os.path.join(save_path, 'detections.pkl'), 'rb'))
@@ -58,7 +56,7 @@ def save_hard_example(net, data,save_path):
     for im_idx, dets, gts in zip(im_idx_list, det_boxes, gt_boxes_list):
         gts = np.array(gts, dtype=np.float32).reshape(-1, 4)
         if image_done % 100 == 0:
-            print("%d images done" % image_done)
+            print("%d/%d images done" % (image_done,num_of_images))
         image_done += 1
 
         if dets.shape[0] == 0:
@@ -146,15 +144,15 @@ def t_net(prefix, epoch,
         RNet = Detector(R_Net, 24, batch_size[1], model_path[1])
         detectors[1] = RNet
 
-    # load onet model
+    # load onet model, Onet is excess in train
     if test_mode == "ONet":
         print("==================================", test_mode)
         ONet = Detector(O_Net, 48, batch_size[2], model_path[2])
         detectors[2] = ONet
         
-    basedir = '../DATA/'
+    basedir = '../../MTCNN_DATA/dataset/'
     #anno_file
-    filename = 'wider_face_train_bbx_gt.txt'
+    filename = basedir+'WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt'
     #read anotation(type:dict), include 'images' and 'bboxes'
     data = read_annotation(basedir,filename)
     mtcnn_detector = MtcnnDetector(detectors=detectors, min_face_size=min_face_size,
@@ -164,12 +162,15 @@ def t_net(prefix, epoch,
     # imdb = IMDB("wider", image_set, root_path, dataset_path, 'test')
     # gt_imdb = imdb.gt_imdb()
     print('load test data')
-    test_data = TestLoader(data['images'])
+    # test 100 example
+    test_data = TestLoader(data['images'][:5])
     print ('finish loading')
     #list
     print ('start detecting....')
     detections,_ = mtcnn_detector.detect_face(test_data)
+
     print ('finish detecting ')
+    print ('pickle begin')
     save_net = 'RNet'
     if test_mode == "PNet":
         save_net = "RNet"
@@ -177,8 +178,9 @@ def t_net(prefix, epoch,
         save_net = "ONet"
     #save detect result
     save_path = os.path.join(data_dir, save_net)
-    print ('save_path is :')
-    print(save_path)
+    print ('save_path is :%s' %save_path)
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
@@ -186,7 +188,7 @@ def t_net(prefix, epoch,
     with open(save_file, 'wb') as f:
         # 1 denote binary format
         pickle.dump(detections, f,1)
-    print("%s测试完成开始OHEM" % image_size)
+    print("%s pickle done" % image_size)
     save_hard_example(image_size, data, save_path)
 
 
@@ -194,14 +196,16 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Test mtcnn',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--test_mode', dest='test_mode', help='test net type, can be pnet, rnet or onet',
-                        default='RNet', type=str)
+                        default='PNet', type=str)
     parser.add_argument('--prefix', dest='prefix', help='prefix of model name', nargs="+",
-                        default=['../data/MTCNN_model/PNet_No_Landmark/PNet', '../data/MTCNN_model/RNet_No_Landmark/RNet', '../data/MTCNN_model/ONet_No_Landmark/ONet'],
-                        type=str)
+                        default=['../../MTCNN_DATA/model_data/MTCNN_model/PNet_landmark/PNet',
+                                 '../../MTCNN_DATA/model_data/MTCNN_model/RNet_landmark/RNet',
+                                 '../../MTCNN_DATA/model_data/MTCNN_model/ONet_landmark/ONet'],type=str)
     parser.add_argument('--epoch', dest='epoch', help='epoch number of model to load', nargs="+",
-                        default=[18, 14, 16], type=int)
+                        default=[30,22,22], type=int)
     parser.add_argument('--batch_size', dest='batch_size', help='list of batch size used in prediction', nargs="+",
                         default=[2048, 256, 16], type=int)
+    # lower the threshold in order to get more train example
     parser.add_argument('--thresh', dest='thresh', help='list of thresh for pnet, rnet, onet', nargs="+",
                         default=[0.3, 0.1, 0.7], type=float)
     parser.add_argument('--min_face', dest='min_face', help='minimum face size for detection',
@@ -218,15 +222,14 @@ def parse_args():
 
 if __name__ == '__main__':
 
-    net = 'ONet'
+    net = 'RNet'
 
     if net == "RNet":
         image_size = 24
     if net == "ONet":
         image_size = 48
-
-    base_dir = '../DATA/WIDER_train'
-    data_dir = '../DATA/no_LM%s' % str(image_size)
+    base_dir = '../../MTCNN_DATA/dataset/WIDER_train'
+    data_dir = '../../MTCNN_DATA/dataset/%s' % str(image_size)
     
     neg_dir = os.path.join(data_dir, 'negative')
     pos_dir = os.path.join(data_dir, 'positive')

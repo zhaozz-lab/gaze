@@ -10,8 +10,8 @@ import numpy.random as npr
 from prepare_data.BBox_utils import getDataFromTxt, BBox
 from prepare_data.Landmark_utils import rotate, flip
 
-dstdir = "../../DATA/48/train_ONet_landmark_aug"
-OUTPUT = '../../DATA/48'
+dstdir = "../../MTCNN_DATA/dataset/48/train_ONet_landmark_aug"
+OUTPUT = '../../MTCNN_DATA/dataset/48'
 if not exists(OUTPUT): os.mkdir(OUTPUT)
 if not exists(dstdir): os.mkdir(dstdir)
 assert(exists(dstdir) and exists(OUTPUT))
@@ -55,7 +55,7 @@ def GenerateData(ftxt, output,net,argument=False):
         return
     image_id = 0
     f = open(join(OUTPUT,"landmark_%s_aug.txt" %(size)),'w')
-    data = getDataFromTxt(ftxt)
+    data = getDataFromTxt(ftxt, data_path='../../MTCNN_DATA/dataset/FLW/train')
     idx = 0
     #image_path bbox landmark(5*2)
     for (imgPath, bbox, landmarkGt) in data:
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     # train data
     net = "ONet"
     #train_txt = "train.txt"
-    train_txt = "trainImageList.txt"
+    train_txt = "../../MTCNN_DATA/dataset/FLW/train/trainImageList.txt"
     imgs,landmarks = GenerateData(train_txt, OUTPUT,net,argument=True)
     #WriteToTfrecord(imgs,landmarks,net)
    
