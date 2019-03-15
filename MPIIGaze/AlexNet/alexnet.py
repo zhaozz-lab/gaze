@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-class SWCNN(object):
+class AlexNet(object):
     """Implementation of the AlexNet."""
     def __init__(self, x, keep_prob, num_classes, skip_layer,
                  weights_path='DEFAULT'):
@@ -32,13 +32,12 @@ class SWCNN(object):
     def create(self):
         """Create the network graph."""
         # 1st Layer: Conv (w ReLu) -> Lrn -> Pool
-        # conv1 = conv(self.X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
         conv1 = conv(self.X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
         norm1 = lrn(conv1, 2, 2e-05, 0.75, name='norm1')
-        pool1 = max_pool(norm1, 3, 3, 2, 2, padding='SAME', name='pool1')
+        pool1 = max_pool(norm1, 3, 3, 2, 2, padding='VALID', name='pool1')
         
         # 2nd Layer: Conv (w ReLu)  -> Lrn -> Pool with 2 groups
-        conv2 = conv(pool1, 5, 5, 256, 1, 1,groups=2, name='conv2')
+        conv2 = conv(pool1, 5, 5, 256, 1, 1, groups=2, name='conv2')
         norm2 = lrn(conv2, 2, 2e-05, 0.75, name='norm2')
         pool2 = max_pool(norm2, 3, 3, 2, 2, padding='VALID', name='pool2')
         
@@ -49,33 +48,12 @@ class SWCNN(object):
         conv4 = conv(conv3, 3, 3, 384, 1, 1, groups=2, name='conv4')
 
         # 5th Layer: Conv (w ReLu) -> Pool splitted into two groups
-        conv5 = conv(conv4, 3, 3, 256, 1, 1, groups=2,name='conv5')
+        conv5 = conv(conv4, 3, 3, 256, 1, 1, groups=2, name='conv5')
         pool5 = max_pool(conv5, 3, 3, 2, 2, padding='VALID', name='pool5')
 
-        u=pool5
-
-        # 1th layer in spathial weights network
-        sconv1 = conv(pool5, 1, 1, 256, 1, 1,padding='VALID', name='sconv1')
-
-        # 2th layer in spathial weights network
-        sconv2 = conv(sconv1, 1, 1, 256, 1, 1,padding='VALID', name='sconv2')
-
-        # 3th layer in spathial weights network
-        sconv3 = conv(sconv2, 1, 1, 1, 1, 1,padding='VALID', name='sconv3')
-
-        # show the image
-        # IMAGENET_MEAN = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32)
-        # self.input=tf.add(self.X,IMAGENET_MEAN)
-        # self.u = u
-        # self.w = w
-
-        w=tf.tile(sconv3,[1,1,1,256])
-
-        v=tf.multiply(u,w)
-
         # 6th Layer: Flatten -> FC (w ReLu) -> Dropout
-        flattened = tf.reshape(v, [-1, 13*13*256])
-        fc6 = fc(flattened, 13*13*256, 4096, name='fc6')
+        flattened = tf.reshape(pool5, [-1, 6*6*256])
+        fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
         dropout6 = dropout(fc6, self.KEEP_PROB)
 
         # 7th Layer: FC (w ReLu) -> Dropout
@@ -84,7 +62,6 @@ class SWCNN(object):
 
         # 8th Layer: FC and return unscaled activations
         self.fc8 = fc(dropout7, 4096, self.NUM_CLASSES, relu=False, name='fc8')
-
 
     def load_initial_weights(self, session):
         """Load weights from file into network.
@@ -135,22 +112,12 @@ def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
 
     with tf.variable_scope(name) as scope:
         # Create tf variables for the weights and biases of the conv layer
-        if name=='sconv3':
-            weights = tf.get_variable('weights', shape=[filter_height,
-                                                        filter_width,
-                                                        input_channels / groups,
-                                                        num_filters],
-                                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.001))
-            biases = tf.get_variable('biases', shape=[num_filters],
-                                     initializer=tf.constant_initializer(1))
-        else:
-            weights = tf.get_variable('weights', shape=[filter_height,
-                                                        filter_width,
-                                                        input_channels/groups,
-                                                        num_filters],
-                                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01))
-            biases = tf.get_variable('biases', shape=[num_filters],
-                                      initializer=tf.constant_initializer(0.1))
+        weights = tf.get_variable('weights', shape=[filter_height,
+                                                    filter_width,
+                                                    input_channels/groups,
+                                                    num_filters])
+        biases = tf.get_variable('biases', shape=[num_filters])
+
     if groups == 1:
         conv = convolve(x, weights)
 
@@ -193,6 +160,7 @@ def fc(x, num_in, num_out, name, relu=True):
     else:
         return act
 
+
 def max_pool(x, filter_height, filter_width, stride_y, stride_x, name,
              padding='SAME'):
     """Create a max pooling layer."""
@@ -200,13 +168,14 @@ def max_pool(x, filter_height, filter_width, stride_y, stride_x, name,
                           strides=[1, stride_y, stride_x, 1],
                           padding=padding, name=name)
 
+
 def lrn(x, radius, alpha, beta, name, bias=1.0):
     """Create a local response normalization layer."""
     return tf.nn.local_response_normalization(x, depth_radius=radius,
                                               alpha=alpha, beta=beta,
                                               bias=bias, name=name)
 
+
 def dropout(x, keep_prob):
     """Create a dropout layer."""
     return tf.nn.dropout(x, keep_prob)
-     
