@@ -1,4 +1,7 @@
-import cv2
-img=cv2.imread("0005.jpg")
-cv2.imshow("1",img)
-cv2.waitKey(0)
+import tensorflow as tf
+import numpy as np
+a=[1.0]
+img=tf.convert_to_tensor(np.array(a))
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    print(sess.run(img))

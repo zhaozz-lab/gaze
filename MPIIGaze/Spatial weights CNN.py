@@ -39,7 +39,23 @@ def compute_angle_error(labels, gaze):
     label_x, label_y, label_z = convert_to_unit_vector(labels)
     angles = gaze_x * label_x + gaze_y * label_y + gaze_z * label_z
     return tf.acos(angles) * 180 / np.pi
+def train(sess,train_batches_per_epoch,next_batch,loss,train_op,input,labels,keep_prob,dropout_rate,writer,merged_summary,epoch):
+    for step in range(train_batches_per_epoch):
 
+        # get next batch of data
+        img_batch, label_batch = sess.run(next_batch)
+
+        # And run the training op
+        losses, _ = sess.run([loss, train_op], feed_dict={input: img_batch,
+                                                          labels: label_batch,
+                                                          keep_prob: dropout_rate})
+        print(losses)
+        # Generate summary with the current batch of data and write to file
+        if step % display_step == 0:
+            s = sess.run(merged_summary, feed_dict={input: img_batch,
+                                                    labels: label_batch,
+                                                    keep_prob: 1.})
+            writer.add_summary(s, epoch * train_batches_per_epoch + step)
 def main(args):
     learning_rate = args[0]
     num_epochs = args[1]
@@ -62,32 +78,33 @@ def main(args):
         os.mkdir(filewriter_path)
     # load data
     leave_one_out=args[10]
-    dir = os.listdir(dataset_path)
     train_list = []
     val_list=[]
+    dir = os.listdir(dataset_path)
     for _ in dir:
         if ".h5" in _ :
             if str(leave_one_out) in _ :
-                val_list.append(_)
+                path=os.path.join(dataset_path,_)
+                val_list.append(path)
             else:
-                train_list.append(_)
+                path = os.path.join(dataset_path, _)
+                train_list.append(path)
     with tf.device("/cpu:0"):
-        train_data=ImageDataGenerator(dataset_path,
-                                      train_list,
+        train_data=ImageDataGenerator(file_path='/',
                                       batch_size=batch_size,
                                       num_dim=num_dim,
                                       shuffle=True)
-        val_data = ImageDataGenerator(dataset_path,
-                                      val_list,
-                                      batch_size=batch_size,
-                                      num_dim=num_dim,
-                                      shuffle=False)
+        # val_data = ImageDataGenerator(val_list,
+        #                               batch_size=batch_size,
+        #                               num_dim=num_dim,
+        #                               shuffle=False)
         iterator = tf.data.Iterator.from_structure(train_data.data.output_types,
                                            train_data.data.output_shapes)
         next_batch = iterator.get_next()
     # Ops for initializing the two different iterators
     training_init_op = iterator.make_initializer(train_data.data)
-    validation_init_op=iterator.make_initializer(val_data.data)
+    # validation_init_op=iterator.make_initializer(val_data.data)
+
     input = tf.placeholder(tf.float32, [batch_size, 448, 448, 3])
     input = tf.subtract(input, IMAGENET_MEAN)
     labels = tf.placeholder(tf.float32, [batch_size, num_dim])
@@ -146,76 +163,67 @@ def main(args):
 
     # Get the number of training/validation steps per epoch
     train_batches_per_epoch = int(np.floor(train_data.data_size/batch_size))
-    val_batches_per_epoch = int(np.floor(val_data.data_size / batch_size))
+    # val_batches_per_epoch = int(np.floor(val_data.data_size / batch_size))
 
     # Start Tensorflow session
     with tf.Session() as sess:
 
         # Initialize all variables
         sess.run(tf.global_variables_initializer())
-
         # Add the model graph to TensorBoard
         writer.add_graph(sess.graph)
 
         # Load the pretrained weights into the non-trainable layer
         model.load_initial_weights(sess)
+        # ----------------train-----------------------
 
-        print("{} Start training...".format(datetime.now()))
-        print("{} Open Tensorboard at --logdir {}".format(datetime.now(),
-                                                          filewriter_path))
-        # Loop over number of epochs
-        for epoch in range(num_epochs):
+        for train_path in train_list:
+            train_data.read_h5_file(train_path)
+            sess.run(training_init_op,feed_dict={train_data.p_img:np.array(train_data.img),
+                                                 train_data.p_labels:np.array(train_data.labels)})
 
-            print("{} Epoch number: {}".format(datetime.now(), epoch+1))
+            print("{} Start training...".format(datetime.now()))
+            print("{} Open Tensorboard at --logdir {}".format(datetime.now(),
+                                                              filewriter_path))
+            # Loop over number of epochs
+            for epoch in range(num_epochs):
+                sess.run(training_init_op,feed_dict={train_data.p_img:np.array(train_data.img),
+                                                 train_data.p_labels:np.array(train_data.labels)})
+                print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
 
-            # ----------------train-----------------------
-            sess.run(training_init_op)
-            for step in range(train_batches_per_epoch):
+                train(sess, train_batches_per_epoch, next_batch, loss, train_op, input, labels, keep_prob, dropout_rate,
+                      writer, merged_summary,epoch)
 
-                # get next batch of data
-                img_batch, label_batch = sess.run(next_batch)
+        # ----------------validation-----------------------
+        '''
+        print("{} Start validation".format(datetime.now()))
+        averagemeter = AverageMeter()
+        for _ in range(val_batches_per_epoch):
 
-                # And run the training op
-                losses,_=sess.run([loss,train_op],feed_dict={input: img_batch,
-                                                             labels: label_batch,
-                                                             keep_prob:dropout_rate})
+            img_batch, label_batch = sess.run([val_data.img_batch,val_data.label_batch])
+            result = sess.run(angle_error, feed_dict={input: img_batch,
+                                                labels: label_batch,
+                                                keep_prob: 1.})
+            averagemeter.update(result,_)
+        average_angle_error=averagemeter.avg
+        print("{} Validation angle error = {:.5f}".format(datetime.now(),
+                                                       average_angle_error))
+        print("{} Saving checkpoint of model...".format(datetime.now()))
 
-                print(losses)
-                # Generate summary with the current batch of data and write to file
-                if step % display_step == 0:
-                    s = sess.run(merged_summary, feed_dict={input: img_batch,
-                                                            labels: label_batch,
-                                                            keep_prob: 1.})
+        coord.request_stop()
+        coord.join(threads)
 
-                    writer.add_summary(s, epoch*train_batches_per_epoch + step)
-            # ----------------validation-----------------------
+        # save checkpoint of the model
+        checkpoint_name = os.path.join(checkpoint_path,
+                                       'model_epoch'+str(epoch+1)+'.ckpt')
+        save_path = saver.save(sess, checkpoint_name)
 
-            print("{} Start validation".format(datetime.now()))
-            sess.run(validation_init_op)
-            averagemeter = AverageMeter()
-            for _ in range(val_batches_per_epoch):
-
-                img_batch, label_batch = sess.run(next_batch)
-                result = sess.run(angle_error, feed_dict={input: img_batch,
-                                                    labels: label_batch,
-                                                    keep_prob: 1.})
-                averagemeter.update(result,_)
-            average_angle_error=averagemeter.avg
-            print("{} Validation angle error = {:.5f}".format(datetime.now(),
-                                                           average_angle_error))
-            print("{} Saving checkpoint of model...".format(datetime.now()))
-            '''
-            # save checkpoint of the model
-            checkpoint_name = os.path.join(checkpoint_path,
-                                           'model_epoch'+str(epoch+1)+'.ckpt')
-            save_path = saver.save(sess, checkpoint_name)
-
-            print("{} Model checkpoint saved at {}".format(datetime.now(),
-                                                           checkpoint_name))
-            '''
+        print("{} Model checkpoint saved at {}".format(datetime.now(),
+                                                       checkpoint_name))
+        '''
 if __name__=='__main__':
     # learning parameter
-    learning_rate = 0.0001
+    learning_rate = 0.00001
     num_epochs = 10
     batch_size = 64
     # Network params
