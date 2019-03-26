@@ -1,7 +1,12 @@
 import tensorflow as tf
-import numpy as np
-a=[1.0]
-img=tf.convert_to_tensor(np.array(a))
+filewriter_path='./tensorboard'
+
+t=tf.Variable([0,1,2])
+
+writer = tf.summary.FileWriter(filewriter_path)
 with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    print(sess.run(img))
+        pass
+#     writer.add_graph(sess.graph)
+tf.reset_default_graph()
+with tf.Session() as sess:
+    writer.add_graph(sess.graph)

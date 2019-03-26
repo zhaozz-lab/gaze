@@ -3,8 +3,7 @@ import numpy as np
 
 class SWCNN(object):
     """Implementation of the AlexNet."""
-    def __init__(self, x, keep_prob, num_classes, skip_layer,
-                 weights_path='DEFAULT'):
+    def __init__(self, x, keep_prob, num_classes, skip_layer,weights_path='DEFAULT'):
         """Create the graph of the AlexNet model.
         Args:
             x: Placeholder for the input tensor.
@@ -32,7 +31,6 @@ class SWCNN(object):
     def create(self):
         """Create the network graph."""
         # 1st Layer: Conv (w ReLu) -> Lrn -> Pool
-        # conv1 = conv(self.X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
         conv1 = conv(self.X, 11, 11, 96, 4, 4, padding='VALID', name='conv1')
         norm1 = lrn(conv1, 2, 2e-05, 0.75, name='norm1')
         pool1 = max_pool(norm1, 3, 3, 2, 2, padding='SAME', name='pool1')
@@ -63,13 +61,7 @@ class SWCNN(object):
         # 3th layer in spathial weights network
         sconv3 = conv(sconv2, 1, 1, 1, 1, 1,padding='VALID', name='sconv3')
 
-        # show the image
-        # IMAGENET_MEAN = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32)
-        # self.input=tf.add(self.X,IMAGENET_MEAN)
-        # self.u = u
-        # self.w = w
-
-        w=tf.tile(sconv3,[1,1,1,256])
+        w=sconv3
 
         v=tf.multiply(u,w)
 
