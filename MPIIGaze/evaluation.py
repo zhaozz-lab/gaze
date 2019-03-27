@@ -56,7 +56,8 @@ def main(args):
 
         writer = tf.summary.FileWriter(filewriter_path)
 
-        checkpoint_name = os.path.join(checkpoint_path,'model_train_' + str(num_epochs) + '_' + str(batch_size) + '.ckpt')
+        checkpoint_name = os.path.join(checkpoint_path, 'model_train_' + str(i) + '_' + str(num_epochs) + '_' + str(
+            batch_size) + '.ckpt')
         ckpt = tf.train.get_checkpoint_state(checkpoint_path)
         saver = tf.train.Saver()
 
