@@ -54,7 +54,7 @@ def train(train_file_list,
                                                  learning_rate_decay)
     with tf.name_scope("train"):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-        # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.99)
+        # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.95)
         train_op=optimizer.minimize(loss,global_step=global_step)
 
     with tf.name_scope("angle_error"):
@@ -95,11 +95,11 @@ def train(train_file_list,
                                                                                       labels: gaze_batch,
                                                                                       keep_prob: dropout_rate})
                 print("step: {} losses: {}  angle error: {}".format(step,losses,angle_er))
-                if step % display_step == 0:
-                    s = sess.run(merged_summary, feed_dict={input: face_batch,
-                                                            labels: gaze_batch,
-                                                            keep_prob: 1.})
-                    writer.add_summary(s, epoch * generator.num_steps_epoch + step)
+                # if step % display_step == 0:
+                #     s = sess.run(merged_summary, feed_dict={input: face_batch,
+                #                                             labels: gaze_batch,
+                #                                             keep_prob: 1.})
+                #     writer.add_summary(s, epoch * generator.num_steps_epoch + step)
         # ----------------save---------------------------
         print("{} Saving checkpoint of model...".format(datetime.now()))
         # save checkpoint of the model
@@ -127,8 +127,8 @@ if __name__=='__main__':
     dropout_rate = 1
     display_step = 5
     train_layer=['fc6','fc7','fc8']
-    # dataset_path = "/home/leo/Desktop/Dataset/MPIIFaceGaze_normalized"
-    dataset_path="E:/MPIIGaze/MPIIFaceGaze_normalized"
+    dataset_path = "/home/leo/Desktop/Dataset/MPIIFaceGaze_normalized"
+    # dataset_path="E:/MPIIGaze/MPIIFaceGaze_normalized"
     weight_path = "./bvlc_alexnet.npy"
     filewriter_path = "./tensorboard"
     checkpoint_path = "./checkpoints"
@@ -142,11 +142,13 @@ if __name__=='__main__':
             files_list.append(os.path.join(dataset_path,_))
     # leave one out cross validation
     for i in range(15):
+        i=0
         train_list=files_list
         val_list=files_list[i]
         train_list.remove(val_list)
         train_lists=[train_list[0:4],train_list[4:8],train_list[8:12],train_list[12:14]]
         # train by three steps
+
         for index,train_file_list in enumerate(train_lists):
             print('loading data in {}'.format(train_file_list))
             p = Process(target=train, args=(train_file_list,
@@ -161,10 +163,10 @@ if __name__=='__main__':
                                             weight_path,
                                             filewriter_path,
                                             checkpoint_path,
-
                                             i))
             p.start()
             p.join()
             print('Phase %d train over'%(index))
+
         gc.collect()
         break

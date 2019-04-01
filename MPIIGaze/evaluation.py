@@ -8,7 +8,7 @@ import tensorflow as tf
 from swcnn import SWCNN
 from datetime import datetime
 from processing import *
-
+from datetime import datetime
 
 def main(args):
     learning_rate_base = args.learning_rate_base
@@ -31,6 +31,7 @@ def main(args):
 
     # leave one out cross validation
     for i in range(15):
+
         val_list=files_list[i]
         val_file = [h5py.File(val_list)]
 
@@ -56,8 +57,7 @@ def main(args):
 
         writer = tf.summary.FileWriter(filewriter_path)
 
-        checkpoint_name = os.path.join(checkpoint_path, 'model_train_' + str(i) + '_' + str(num_epochs) + '_' + str(
-            batch_size) + '.ckpt')
+        checkpoint_name = os.path.join(checkpoint_path, 'model_train_' + str(i) + '_' + str(num_epochs) + '_' + str(batch_size) + '.ckpt')
         ckpt = tf.train.get_checkpoint_state(checkpoint_path)
         saver = tf.train.Saver()
 
@@ -79,7 +79,12 @@ def main(args):
                 averagemeter+=result
             averagemeter=averagemeter/(val_generator.num_steps_epoch)
             print("{} Validation angle error = {:.5f}".format(datetime.now(),averagemeter))
-
+        t = datetime.now()
+        txt=os.path.join("./evaluation_record",str(learning_rate_base)+'_'+str(num_epochs)+"_"+str(batch_size)+'_'+
+                         str(t.month)+'_'+str(t.day)+'_'+str(t.hour)+'_'+str(t.minute)+'_'+str(t.second)+'.txt')
+        with open(txt,'w') as f:
+            f.write(ckpt.model_checkpoint_path+'\n')
+            f.write('The average angle is :{}'.format(averagemeter))
         val_file[0].close()
         val_face,val_gaze=None, None
         model = None

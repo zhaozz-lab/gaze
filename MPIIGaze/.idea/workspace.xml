@@ -2,6 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="56fca3c3-65d6-44f7-aa23-c30ce22bfc5b" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/normalize_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Spatial weights CNN.py" beforeDir="false" afterPath="$PROJECT_DIR$/Spatial weights CNN.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/evaluation.py" beforeDir="false" afterPath="$PROJECT_DIR$/evaluation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../MTCNN/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../MTCNN/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../MTCNN/Detection/MtcnnDetector.py" beforeDir="false" afterPath="$PROJECT_DIR$/../MTCNN/Detection/MtcnnDetector.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../MTCNN/Detection/fcn_detector.py" beforeDir="false" afterPath="$PROJECT_DIR$/../MTCNN/Detection/fcn_detector.py" afterDir="false" />
@@ -20,48 +24,30 @@
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FavoritesManager">
+    <favorites_list name="MPIIGaze" />
+  </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/normalize_data.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="220">
+              <caret line="56" lean-forward="true" selection-start-line="56" selection-end-line="56" />
+              <folding>
+                <element signature="e#0#9#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Spatial weights CNN.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="87">
-              <caret line="110" column="34" lean-forward="true" selection-start-line="110" selection-start-column="34" selection-end-line="110" selection-end-column="34" />
+            <state relative-caret-position="323">
+              <caret line="128" column="35" lean-forward="true" selection-start-line="128" selection-start-column="35" selection-end-line="128" selection-end-column="35" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/processing.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="228">
-              <caret line="15" column="17" selection-start-line="15" selection-start-column="17" selection-end-line="15" selection-end-column="17" />
-              <folding>
-                <element signature="e#0#9#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/AlexNet/finetune.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="665">
-              <caret line="42" column="47" selection-start-line="42" selection-start-column="47" selection-end-line="42" selection-end-column="47" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/swcnn.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1254">
-              <caret line="66" selection-start-line="66" selection-end-line="66" />
-              <folding>
-                <element signature="e#0#23#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -83,6 +69,8 @@
       <find>get_normalized_image</find>
       <find>dropout_rate</find>
       <find>angle_error</find>
+      <find>target_3D</find>
+      <find>norm</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -101,14 +89,15 @@
         <option value="$PROJECT_DIR$/evaluation.py" />
         <option value="$PROJECT_DIR$/test.py" />
         <option value="$PROJECT_DIR$/Spatial weights CNN.py" />
+        <option value="$PROJECT_DIR$/normalize_data.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="1200" />
-    <option name="y" value="541" />
-    <option name="width" value="1717" />
-    <option name="height" value="990" />
+    <option name="y" value="481" />
+    <option name="width" value="1920" />
+    <option name="height" value="1106" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -124,6 +113,10 @@
               <item name="MPIIGaze" type="b2602c69:ProjectViewProjectNode" />
               <item name="MPIIGaze" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="MPIIGaze" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+            </path>
           </expand>
           <select />
         </subPane>
@@ -131,8 +124,9 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -146,7 +140,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.Spatial weights CNN">
+  <component name="RunManager" selected="Python.normalize_data">
     <configuration name="Spatial weights CNN" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="MPIIGaze" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -162,6 +156,27 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Spatial weights CNN.py" />
       <option name="PARAMETERS" value="0.0001 5 64" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="normalize_data" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="MPIIGaze" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/normalize_data.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -216,9 +231,11 @@
       <item itemvalue="Python.Spatial weights CNN" />
       <item itemvalue="Python.preprocessing" />
       <item itemvalue="Python.test" />
+      <item itemvalue="Python.normalize_data" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.normalize_data" />
         <item itemvalue="Python.Spatial weights CNN" />
         <item itemvalue="Python.test" />
         <item itemvalue="Python.preprocessing" />
@@ -251,20 +268,20 @@
     <frame x="1200" y="481" width="1920" height="1106" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.10384818" />
-      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.7071651" visible="true" weight="0.12816456" />
+      <window_info id="Structure" order="1" sideWeight="0.29283488" side_tool="true" weight="0.103375524" />
+      <window_info id="Favorites" order="2" sideWeight="0.5017422" side_tool="true" weight="0.103375524" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.28661087" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49973643" weight="0.27092052" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.28586388" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49973643" weight="0.3486911" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" weight="0.32925585" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.32879582" />
       <window_info anchor="bottom" id="Version Control" order="7" />
-      <window_info anchor="bottom" id="Terminal" order="8" weight="0.32925585" />
-      <window_info anchor="bottom" id="Event Log" order="9" sideWeight="0.5002636" side_tool="true" weight="0.39958158" />
-      <window_info anchor="bottom" id="Python Console" order="10" weight="0.32845187" />
+      <window_info anchor="bottom" id="Terminal" order="8" weight="0.32879582" />
+      <window_info anchor="bottom" id="Event Log" order="9" sideWeight="0.5002636" side_tool="true" weight="0.39895287" />
+      <window_info anchor="bottom" id="Python Console" order="10" weight="0.3277487" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -292,52 +309,52 @@
   <component name="debuggerHistoryManager">
     <expressions id="watch">
       <expression>
-        <expression-string>len(files)</expression-string>
+        <expression-string>h[0]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t3[:,:,1]</expression-string>
+        <expression-string>gaze[0]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t1[:,:,1]</expression-string>
+        <expression-string>hRnew[0]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t3[:,:,0]</expression-string>
+        <expression-string>target_3D[0]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t1[:,:,0]</expression-string>
+        <expression-string>cnvMat[0]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t2[:,:,0]</expression-string>
+        <expression-string>self.img_list[994]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t2[:,:,1]</expression-string>
+        <expression-string>self.img_list[995]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>t2</expression-string>
+        <expression-string>len(self.img_list)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>f['data'][0:length]</expression-string>
+        <expression-string>self.img[994]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>f['data'][0]</expression-string>
+        <expression-string>self.img[995]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
@@ -397,13 +414,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="17" selection-start-line="17" selection-end-line="17" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/AlexNet/evaluation.py" />
     <entry file="file://$PROJECT_DIR$/evaluation.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -412,13 +422,6 @@
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="171">
-          <caret line="9" column="24" lean-forward="true" selection-start-line="9" selection-start-column="24" selection-end-line="9" selection-end-column="24" />
         </state>
       </provider>
     </entry>
@@ -431,7 +434,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/swcnn.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1254">
+        <state relative-caret-position="552">
           <caret line="66" selection-start-line="66" selection-end-line="66" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
@@ -439,20 +442,58 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="19">
+          <caret line="1" lean-forward="true" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_CONFIG_DIR$/pycharm64.vmoptions">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="19">
+          <caret line="1" column="8" selection-start-line="1" selection-start-column="8" selection-end-line="1" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/processing.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="228">
-          <caret line="15" column="17" selection-start-line="15" selection-start-column="17" selection-end-line="15" selection-end-column="17" />
+        <state relative-caret-position="223">
+          <caret line="52" column="4" selection-start-line="52" selection-start-column="4" selection-end-line="52" selection-end-column="4" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/anaconda3/envs/tensorflow/lib/python3.6/site-packages/numpy/linalg/linalg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="198">
+          <caret line="206" selection-start-line="206" selection-end-line="206" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="323">
+          <caret line="17" selection-start-line="17" selection-end-line="17" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Spatial weights CNN.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="87">
-          <caret line="110" column="34" lean-forward="true" selection-start-line="110" selection-start-column="34" selection-end-line="110" selection-end-column="34" />
+        <state relative-caret-position="323">
+          <caret line="128" column="35" lean-forward="true" selection-start-line="128" selection-start-column="35" selection-end-line="128" selection-end-column="35" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/normalize_data.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="220">
+          <caret line="56" lean-forward="true" selection-start-line="56" selection-end-line="56" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
