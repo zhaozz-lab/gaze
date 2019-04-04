@@ -3,12 +3,14 @@ import numpy as np
 import cv2
 import gc
 import argparse
+from datetime import datetime
+from datetime import datetime
+from matplotlib import pyplot as plt
 
 import tensorflow as tf
 from swcnn import SWCNN
-from datetime import datetime
 from processing import *
-from datetime import datetime
+
 
 def main(args):
     learning_rate_base = args.learning_rate_base
@@ -35,7 +37,7 @@ def main(args):
         val_list=files_list[i]
         val_file = [h5py.File(val_list)]
 
-        val_face, val_gaze, val_num,num_step_epoch =get_train_test_data(val_file,batch_size,do_shuffle=True)
+        val_face, val_gaze, val_num,num_step_epoch =get_train_test_data(val_file,batch_size,do_shuffle=False)
         val_generator=ImageDataGenerator(val_num,batch_size,num_step_epoch,val_face,val_gaze,norm_type='subtract_alextnet')
 
         val_dataset = tf.data.Dataset.from_generator(val_generator.get_data, (tf.float32,tf.float32),  (tf.TensorShape([batch_size,448,448,3]), tf.TensorShape([batch_size,2])))
@@ -44,11 +46,12 @@ def main(args):
 
         input = tf.placeholder(tf.float32, [batch_size, 448, 448, 3])
         labels = tf.placeholder(tf.float32, [batch_size, 2])
-        keep_prob=tf.placeholder(tf.float32)
-        model = SWCNN(input, keep_prob, 2, train_layer, weight_path)
+        keep_prob = tf.placeholder(tf.float32)
+        phase_train_test = tf.placeholder(tf.bool, name='phase_train_test')
+
+        model = SWCNN(input, keep_prob, 2, train_layer, phase_train_test, weight_path)
 
         gaze = model.fc8
-
         with tf.name_scope("angle_error"):
             angle_error=tf.reduce_mean(compute_angle_error(labels,gaze))
         tf.summary.scalar('angle_error', angle_error)
@@ -74,8 +77,10 @@ def main(args):
             for _ in range(val_generator.num_steps_epoch):
                 face_batch, gaze_batch = sess.run(next_batch)
                 result = sess.run(angle_error, feed_dict={input: face_batch,
-                                                          labels: gaze_batch,
-                                                          keep_prob: 1.})
+                                                            labels: gaze_batch,
+                                                            keep_prob: 1.,
+                                                            phase_train_test: False})
+
                 averagemeter+=result
             averagemeter=averagemeter/(val_generator.num_steps_epoch)
             print("{} Validation angle error = {:.5f}".format(datetime.now(),averagemeter))

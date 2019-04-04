@@ -36,14 +36,17 @@ def train(train_file_list,
     input = tf.placeholder(tf.float32, [batch_size, 448, 448, 3])
     labels = tf.placeholder(tf.float32, [batch_size, 2])
     keep_prob = tf.placeholder(tf.float32)
-    model = SWCNN(input, keep_prob, 2, train_layer, weight_path)
+    phase_train_test = tf.placeholder(tf.bool, name='phase_train_test')
+
+    model = SWCNN(input, keep_prob, 2, train_layer,phase_train_test, weight_path)
 
     gaze = model.fc8
 
     with tf.name_scope("l1_loss"):
-        loss=tf.losses.absolute_difference(labels, gaze,reduction='none')
-        loss=tf.reduce_mean(loss)
-        # loss=tf.reduce_mean(tf.squared_difference(labels,gaze))
+        # loss=tf.reduce_sum(tf.losses.absolute_difference(labels, gaze,reduction='none'),axis=-1)
+        # loss=tf.reduce_mean(loss)
+        loss=tf.squared_difference(labels, gaze)
+
     tf.summary.scalar('l1_loss', loss)
 
     global_step=tf.Variable(0,trainable=False)
@@ -52,17 +55,25 @@ def train(train_file_list,
                                                  global_step,
                                                  num_step_epoch,
                                                  learning_rate_decay)
-    with tf.name_scope("train"):
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-        # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.95)
-        train_op=optimizer.minimize(loss,global_step=global_step)
+
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.95)
+    # optimizer=tf.train.MomentumOptimizer(learning_rate,momentum=0.9)
+    train_op=optimizer.minimize(loss,global_step=global_step)
 
     with tf.name_scope("angle_error"):
         angle_error=tf.reduce_mean(compute_angle_error(labels,gaze))
     tf.summary.scalar('angle_error', angle_error)
 
-    merged_summary = tf.summary.merge_all()
+    val_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    gradients =tf.gradients(loss,val_list)
+    gradients=list(zip(gradients,val_list))
+    for var in val_list:
+        tf.summary.histogram(var.name, var)
+    for gradient,var in gradients:
+        tf.summary.histogram(var.name+'/gradient', gradient)
 
+    merged_summary = tf.summary.merge_all()
     writer = tf.summary.FileWriter(filewriter_path)
 
     checkpoint_name = os.path.join(checkpoint_path,'model_train_' +str(i)+'_'+ str(num_epochs) + '_' + str(batch_size) + '.ckpt')
@@ -89,17 +100,47 @@ def train(train_file_list,
             print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
             for step in range(generator.num_steps_epoch):
 
-                face_batch, gaze_batch = sess.run(next_batch)
 
-                angle_er,losses, _ = sess.run([angle_error,loss, train_op],feed_dict={input: face_batch,
-                                                                                      labels: gaze_batch,
-                                                                                      keep_prob: dropout_rate})
+
+
+                face_batch, gaze_batch = sess.run(next_batch)
+                angle_er, losses, _ = sess.run([angle_error, loss, train_op],feed_dict={input: face_batch,
+                                                                                  labels: gaze_batch,
+                                                                                  keep_prob: dropout_rate,
+                                                                                  phase_train_test:True})
+                # conv,umap,wmap,vmap,angle_er,losses,_= sess.run([model.conv1,model.u,model.w,model.v,
+                #                                                     angle_error,loss,train_op],
+                #                                                     feed_dict={input: face_batch,
+                #                                                                labels: gaze_batch,
+                #                                                                keep_prob: dropout_rate,
+                #                                                                phase_train_test:True})
                 print("step: {} losses: {}  angle error: {}".format(step,losses,angle_er))
-                # if step % display_step == 0:
-                #     s = sess.run(merged_summary, feed_dict={input: face_batch,
-                #                                             labels: gaze_batch,
-                #                                             keep_prob: 1.})
-                #     writer.add_summary(s, epoch * generator.num_steps_epoch + step)
+
+                # if step%10 == 0:
+                    # conv=np.mean(conv[0,:,:,:],axis=2)
+                    # plt.figure('conv1')
+                    # plt.imshow(conv)
+                    # umap = np.squeeze(umap[0, :, :, :])
+                    # u = np.mean(umap,axis=2)
+                    # plt.figure('umap')
+                    # plt.imshow(u)
+                    # wmap=np.squeeze(wmap[0])
+                    # wmap=wmap
+                    # plt.figure('wmap')
+                    # plt.imshow(wmap)
+                    # vmap = np.squeeze(vmap[0, :, :, :])
+                    # v = np.mean(vmap, axis=2)
+                    # plt.figure('vmap')
+                    # plt.imshow(v)
+                    # plt.show()
+                    # print('over')
+
+                if step % display_step == 0:
+                    s = sess.run(merged_summary, feed_dict={input: face_batch,
+                                                            labels: gaze_batch,
+                                                            keep_prob: 1.,
+                                                            phase_train_test: False})
+                    writer.add_summary(s, epoch * generator.num_steps_epoch + step)
         # ----------------save---------------------------
         print("{} Saving checkpoint of model...".format(datetime.now()))
         # save checkpoint of the model
@@ -125,10 +166,10 @@ if __name__=='__main__':
     batch_size = args.batch_size
     learning_rate_decay=0.95
     dropout_rate = 1
-    display_step = 5
+    display_step = 10
     train_layer=['fc6','fc7','fc8']
-    dataset_path = "/home/leo/Desktop/Dataset/MPIIFaceGaze_normalized"
-    # dataset_path="E:/MPIIGaze/MPIIFaceGaze_normalized"
+    # dataset_path = "/home/leo/Desktop/Dataset/MPIIFaceGaze_normalized"
+    dataset_path="E:/MPIIGaze/MPIIFaceGaze_normalized"
     weight_path = "./bvlc_alexnet.npy"
     filewriter_path = "./tensorboard"
     checkpoint_path = "./checkpoints"
@@ -141,12 +182,14 @@ if __name__=='__main__':
         if ".mat" in _ :
             files_list.append(os.path.join(dataset_path,_))
     # leave one out cross validation
+
     for i in range(15):
         i=0
         train_list=files_list
         val_list=files_list[i]
         train_list.remove(val_list)
         train_lists=[train_list[0:4],train_list[4:8],train_list[8:12],train_list[12:14]]
+        # train_lists = [[train_list[5]]]
         # train by three steps
 
         for index,train_file_list in enumerate(train_lists):

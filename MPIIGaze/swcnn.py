@@ -3,7 +3,7 @@ import numpy as np
 
 class SWCNN(object):
     """Implementation of the AlexNet."""
-    def __init__(self, x, keep_prob, num_classes, skip_layer,weights_path='DEFAULT'):
+    def __init__(self, x, keep_prob, num_classes, skip_layer,phase_train_test,weights_path='DEFAULT'):
         """Create the graph of the AlexNet model.
         Args:
             x: Placeholder for the input tensor.
@@ -19,12 +19,11 @@ class SWCNN(object):
         self.NUM_CLASSES = num_classes
         self.KEEP_PROB = keep_prob
         self.SKIP_LAYER = skip_layer
-
+        self.phase_train_test = phase_train_test
         if weights_path == 'DEFAULT':
             self.WEIGHTS_PATH = 'bvlc_alexnet.npy'
         else:
             self.WEIGHTS_PATH = weights_path
-
         # Call the create function to build the computational graph of AlexNet
         self.create()
 
@@ -67,17 +66,19 @@ class SWCNN(object):
 
         # 6th Layer: Flatten -> FC (w ReLu) -> Dropout
         flattened = tf.reshape(v, [-1, 13*13*256])
-        fc6 = fc(flattened, 13*13*256, 4096, name='fc6')
+        fc6 = fc(flattened, 13*13*256, 4096,phase_train_test=self.phase_train_test, name='fc6')
         dropout6 = dropout(fc6, self.KEEP_PROB)
 
         # 7th Layer: FC (w ReLu) -> Dropout
-        fc7 = fc(dropout6, 4096, 4096, name='fc7')
+        fc7 = fc(dropout6, 4096, 4096,phase_train_test=self.phase_train_test, name='fc7')
         dropout7 = dropout(fc7, self.KEEP_PROB)
 
         # 8th Layer: FC and return unscaled activations
-        self.fc8 = fc(dropout7, 4096, self.NUM_CLASSES, relu=False, name='fc8')
-
-
+        self.fc8 = fc(dropout7, 4096, self.NUM_CLASSES,phase_train_test=self.phase_train_test, relu=False, name='fc8')
+        self.conv1=conv1
+        self.u=u
+        self.w=w
+        self.v=v
     def load_initial_weights(self, session):
         """Load weights from file into network.
 
@@ -164,9 +165,37 @@ def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
     relu = tf.nn.relu(bias, name=scope.name)
 
     return relu
+def sconv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
+         padding='SAME'):
+    input_channels = int(x.get_shape()[-1])
+    with tf.variable_scope(name) as scope:
+        if name=='sconv3':
+            weights = tf.get_variable('weights', shape=[filter_height,
+                                                        filter_width,
+                                                        input_channels,
+                                                        num_filters],
+                                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.001))
+            biases = tf.get_variable('biases', shape=[num_filters], initializer=tf.constant_initializer(1))
+        else:
+            weights = tf.get_variable('weights', shape=[filter_height,
+                                                        filter_width,
+                                                        input_channels,
+                                                        num_filters],
+                                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01))
+            biases = tf.get_variable('biases', shape=[num_filters], initializer=tf.constant_initializer(0.1))
+        scale = tf.get_variable('scale', shape=num_filters, initializer=tf.constant_initializer(1.0),
+                                    trainable=True)
+        beta = tf.get_variable('beta', shape=num_filters, initializer=tf.constant_initializer(0.0),
+                                    trainable=True)
+    conv=tf.nn.conv2d(x, weights,strides=[1, stride_y, stride_x, 1],padding=padding)
+    bias = tf.reshape(tf.nn.bias_add(conv, biases), tf.shape(conv))
+    batch_mean,batch_var= batch_mean, batch_var = tf.nn.moments(bias, [0,1,2])
+    bias = tf.nn.batch_normalization(bias, batch_mean, batch_var, beta, scale, 1e-3)
+    # Apply relu function
+    relu = tf.nn.relu(bias, name=scope.name)
+    return relu
 
-
-def fc(x, num_in, num_out, name, relu=True):
+def fc(x, num_in, num_out, name,phase_train_test, relu=True,):
     """Create a fully connected layer."""
     with tf.variable_scope(name) as scope:
 
@@ -177,6 +206,23 @@ def fc(x, num_in, num_out, name, relu=True):
 
         # Matrix multiply weights and inputs and add bias
         act = tf.nn.xw_plus_b(x, weights, biases, name=scope.name)
+
+        batch_mean, batch_var = tf.nn.moments(act, [0])
+
+        scale=tf.get_variable('scale', shape= num_out,trainable=True)
+        beta=tf.get_variable('beta', num_out, trainable=True)
+
+        ema=tf.train.ExponentialMovingAverage(decay=0.5)
+
+        def mean_var_with_update():
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                return tf.identity(batch_mean), tf.identity(batch_var)
+
+        mean, var = tf.cond(phase_train_test,
+                            mean_var_with_update,
+                            lambda: (ema.average(batch_mean), ema.average(batch_var)))
+        act=tf.nn.batch_normalization(act,mean,var,beta,scale, 1e-3)
 
     if relu:
         # Apply ReLu non linearity

@@ -20,7 +20,7 @@ import tensorflow as tf
 from alexnet import AlexNet
 from datagenerator import ImageDataGenerator
 from datetime import datetime
-
+from matplotlib import pyplot as plt
 """
 Configuration Part.
 """
