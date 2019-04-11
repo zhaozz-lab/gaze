@@ -45,7 +45,8 @@ def train(train_file_list,
     with tf.name_scope("l1_loss"):
         # loss=tf.reduce_sum(tf.losses.absolute_difference(labels, gaze,reduction='none'),axis=-1)
         # loss=tf.reduce_mean(loss)
-        loss=tf.squared_difference(labels, gaze)
+        loss=tf.reduce_sum(tf.squared_difference(labels, gaze),axis=-1)
+        loss = tf.reduce_mean(loss)
 
     tf.summary.scalar('l1_loss', loss)
 
@@ -56,9 +57,9 @@ def train(train_file_list,
                                                  num_step_epoch,
                                                  learning_rate_decay)
 
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.95)
-    # optimizer=tf.train.MomentumOptimizer(learning_rate,momentum=0.9)
+    # optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    # optimizer = tf.train.AdamOptimizer(learning_rate,beta1=0.9, beta2=0.99)
+    optimizer=tf.train.MomentumOptimizer(learning_rate,momentum=0.9)
     train_op=optimizer.minimize(loss,global_step=global_step)
 
     with tf.name_scope("angle_error"):
@@ -100,9 +101,6 @@ def train(train_file_list,
             print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
             for step in range(generator.num_steps_epoch):
 
-
-
-
                 face_batch, gaze_batch = sess.run(next_batch)
                 angle_er, losses, _ = sess.run([angle_error, loss, train_op],feed_dict={input: face_batch,
                                                                                   labels: gaze_batch,
@@ -117,30 +115,30 @@ def train(train_file_list,
                 print("step: {} losses: {}  angle error: {}".format(step,losses,angle_er))
 
                 # if step%10 == 0:
-                    # conv=np.mean(conv[0,:,:,:],axis=2)
-                    # plt.figure('conv1')
-                    # plt.imshow(conv)
-                    # umap = np.squeeze(umap[0, :, :, :])
-                    # u = np.mean(umap,axis=2)
-                    # plt.figure('umap')
-                    # plt.imshow(u)
-                    # wmap=np.squeeze(wmap[0])
-                    # wmap=wmap
-                    # plt.figure('wmap')
-                    # plt.imshow(wmap)
-                    # vmap = np.squeeze(vmap[0, :, :, :])
-                    # v = np.mean(vmap, axis=2)
-                    # plt.figure('vmap')
-                    # plt.imshow(v)
-                    # plt.show()
-                    # print('over')
+                #     conv=np.mean(conv[0,:,:,:],axis=2)
+                #     plt.figure('conv1')
+                #     plt.imshow(conv)
+                #     umap = np.squeeze(umap[0, :, :, :])
+                #     u = np.mean(umap,axis=2)
+                #     plt.figure('umap')
+                #     plt.imshow(u)
+                #     wmap=np.squeeze(wmap[0])
+                #     wmap=wmap
+                #     plt.figure('wmap')
+                #     plt.imshow(wmap)
+                #     vmap = np.squeeze(vmap[0, :, :, :])
+                #     v = np.mean(vmap, axis=2)
+                #     plt.figure('vmap')
+                #     plt.imshow(v)
+                #     plt.show()
+                #     print('over')
 
-                if step % display_step == 0:
-                    s = sess.run(merged_summary, feed_dict={input: face_batch,
-                                                            labels: gaze_batch,
-                                                            keep_prob: 1.,
-                                                            phase_train_test: False})
-                    writer.add_summary(s, epoch * generator.num_steps_epoch + step)
+                # if step % display_step == 0:
+                #     s = sess.run(merged_summary, feed_dict={input: face_batch,
+                #                                             labels: gaze_batch,
+                #                                             keep_prob: 1.,
+                #                                             phase_train_test: False})
+                #     writer.add_summary(s, epoch * generator.num_steps_epoch + step)
         # ----------------save---------------------------
         print("{} Saving checkpoint of model...".format(datetime.now()))
         # save checkpoint of the model
@@ -153,7 +151,6 @@ def train(train_file_list,
     train_face, train_gaze = None, None
     tf.reset_default_graph()
     gc.collect()
-
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument("learning_rate_base",type=float)
@@ -181,17 +178,17 @@ if __name__=='__main__':
     for _ in os.listdir(dataset_path):
         if ".mat" in _ :
             files_list.append(os.path.join(dataset_path,_))
-    # leave one out cross validation
 
-    for i in range(15):
-        i=0
-        train_list=files_list
-        val_list=files_list[i]
-        train_list.remove(val_list)
-        train_lists=[train_list[0:4],train_list[4:8],train_list[8:12],train_list[12:14]]
-        # train_lists = [[train_list[5]]]
-        # train by three steps
-
+    # 4 fold cross validation
+    val_list=[[files_list[0],files_list[1],files_list[13],files_list[14]],
+                 [files_list[2],files_list[3],files_list[6],files_list[7]],
+                 [files_list[4],files_list[5],files_list[9],files_list[11]]]
+    for i in range(3):
+        train_list=files_list.copy()
+        for val in val_list[i]:
+            train_list.remove(val)
+        train_lists=[train_list[0:4],train_list[4:8],train_list[8::]]
+        # train_lists=[train_list[0:1]]
         for index,train_file_list in enumerate(train_lists):
             print('loading data in {}'.format(train_file_list))
             p = Process(target=train, args=(train_file_list,
@@ -210,6 +207,35 @@ if __name__=='__main__':
             p.start()
             p.join()
             print('Phase %d train over'%(index))
-
+        train_lists=None
         gc.collect()
-        break
+
+    # leave one out cross validation
+    # for i in range(15):
+    #     i=0
+    #     train_list=files_list
+    #     val_list=files_list[i]
+    #     train_list.remove(val_list)
+    #     # train_lists=[train_list[0:4],train_list[4:8],train_list[8:12],train_list[12:14]]
+    #     train_lists = [[train_list[5]]]
+    #     # train by three steps
+    #     for index,train_file_list in enumerate(train_lists):
+    #         print('loading data in {}'.format(train_file_list))
+    #         p = Process(target=train, args=(train_file_list,
+    #                                         num_epochs,
+    #                                         learning_rate_base,
+    #                                         batch_size,
+    #                                         learning_rate_decay,
+    #                                         dropout_rate,
+    #                                         display_step,
+    #                                         train_layer,
+    #                                         dataset_path,
+    #                                         weight_path,
+    #                                         filewriter_path,
+    #                                         checkpoint_path,
+    #                                         i))
+    #         p.start()
+    #         p.join()
+    #         print('Phase %d train over'%(index))
+    #     gc.collect()
+    #     break
