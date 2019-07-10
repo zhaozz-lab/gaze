@@ -11,12 +11,15 @@ Usage Instructions:
 """
 import csv
 import os
+import gc
 import numpy as np
 import pickle
 import random
 import tensorflow as tf
 
+from keras import backend as K
 from matplotlib import pyplot as plt
+from multiprocessing import Pool
 from data_generator import DataGenerator
 from mamlgaze import MAMLGAZE
 from absl import flags
@@ -50,7 +53,7 @@ flags.DEFINE_bool('stop_grad', False, 'if True, do not use second derivatives in
 flags.DEFINE_bool('log', True, 'if false, do not log summaries, for debugging code.')
 flags.DEFINE_string('logdir', './logs', 'directory for summaries and checkpoints.')
 flags.DEFINE_bool('resume', True, 'resume training if there is a model available')
-flags.DEFINE_bool('train', True, 'True to train, False to test.')
+flags.DEFINE_bool('train', False, 'True to train, False to test.')
 flags.DEFINE_integer('test_iter', -1, 'iteration to load model (-1 for latest model)')
 flags.DEFINE_bool('test_set', False, 'Set to true to test on the the test set, False for the validation set.')
 flags.DEFINE_integer('train_update_batch_size', -1, 'number of examples used for gradient update during training (use if you want to test with a different number).')
@@ -58,7 +61,7 @@ flags.DEFINE_float('train_update_lr', -1, 'value of inner gradient step step dur
 
 def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, feed_dict,resume_itr=0):
     SUMMARY_INTERVAL = 100
-    SAVE_INTERVAL = 10000
+    SAVE_INTERVAL = 2500
     PRINT_INTERVAL = 100
     TEST_PRINT_INTERVAL = PRINT_INTERVAL*5
 
@@ -115,7 +118,7 @@ def test(model, saver, sess, exp_string, data_generator, feed_dict, test_num_upd
 
     metaval_accuracies = []
 
-    for _ in range(len(data_generator.num_total_batches)):
+    for _ in range(FLAGS.num_updates):
         temp={model.meta_lr: 0.0}
         feed_dict.update(temp)
         result = sess.run([model.metaval_total_accuracies2], feed_dict=feed_dict)
@@ -129,65 +132,50 @@ def test(model, saver, sess, exp_string, data_generator, feed_dict, test_num_upd
     print('Mean validation accuracy/loss, stddev, and confidence intervals')
     print((means, stds))
 
-    out_filename = FLAGS.logdir +'/'+ exp_string + '/' + 'test_gaze' + str(FLAGS.update_batch_size) + '_stepsize' + str(FLAGS.update_lr) + '.txt'
-    with open(out_filename, 'a') as f:
-        for index,_ in enumerate(means):
-            f.write("accuracy %d : %f\n" % (index,_))
+    return means[FLAGS.num_updates-1],stds[FLAGS.num_updates-1]
+    # out_filename = FLAGS.logdir +'/'+ exp_string + '/' + 'test_gaze' + str(FLAGS.update_batch_size) + '_stepsize' + str(FLAGS.update_lr) + '.txt'
+    # with open(out_filename, 'a') as f:
+    #     for index,_ in enumerate(means):
+    #         f.write("accuracy %d : %f\n" % (index,_))
+def training(train_list,test_list,i):
 
-def main(argv):
-    file_list=[]
-    for _ in os.listdir(FLAGS.MPII):
-        if ".mat" in _:
-            file_list.append(os.path.join(FLAGS.MPII,_))
-    # first one test
-    train_list=file_list.copy()
-    test_list=file_list[0]
-    train_list.remove(file_list[0])
-
-    if FLAGS.train:
-        test_num_updates = 5
-    else:
-        test_num_updates = 10
-
-    if FLAGS.train == False:
-        FLAGS.meta_batch_size = 1
-        orig_meta_batch_size = FLAGS.meta_batch_size
-        # always use meta batch size of 1 when testing.
-    data_generator = DataGenerator(FLAGS.update_batch_size*2, FLAGS.meta_batch_size,train_list,test_list)
-
+    K.clear_session()
+    test_num_updates = 5
+    data_generator = DataGenerator(FLAGS.update_batch_size * 2, FLAGS.meta_batch_size, train_list, test_list)
     dim_output = data_generator.dim_output
     dim_input = data_generator.dim_input
-    num_classes=data_generator.num_classes
-    if FLAGS.train: # only construct training model if needed
+    num_classes = data_generator.num_classes
+    if FLAGS.train:  # only construct training model if needed
         random.seed(5)
-        image_np,headpose_np,gaze_np,image_tensor, headpose_tensor, gaze_tensor = data_generator.make_data_tensor()
-        img_inputa = tf.slice(image_tensor, [0,0,0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1,-1,-1])
-        img_inputb = tf.slice(image_tensor, [0,num_classes*FLAGS.update_batch_size, 0,0,0], [-1,-1,-1,-1,-1])
-        headposea = tf.slice(headpose_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
-        headposeb = tf.slice(headpose_tensor, [0,num_classes*FLAGS.update_batch_size, 0], [-1,-1,-1])
-        gazea = tf.slice(gaze_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
-        gazeb = tf.slice(gaze_tensor, [0,num_classes*FLAGS.update_batch_size, 0], [-1,-1,-1])
+        image_np, headpose_np, gaze_np, image_tensor, headpose_tensor, gaze_tensor = data_generator.make_data_tensor()
+        img_inputa = tf.slice(image_tensor, [0, 0, 0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1, -1, -1])
+        img_inputb = tf.slice(image_tensor, [0, num_classes * FLAGS.update_batch_size, 0, 0, 0], [-1, -1, -1, -1, -1])
+        headposea = tf.slice(headpose_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
+        headposeb = tf.slice(headpose_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
+        gazea = tf.slice(gaze_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
+        gazeb = tf.slice(gaze_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
         # note that the dict and feed_dict is different
-        train_np=[image_np,headpose_np,gaze_np]
-        input_tensors={'img_inputa':img_inputa,'img_inputb':img_inputb,'headposea':headposea,'headposeb':headposeb,'gazea':gazea,'gazeb':gazeb}
+        train_np = [image_np, headpose_np, gaze_np]
+        input_tensors = {'img_inputa': img_inputa, 'img_inputb': img_inputb, 'headposea': headposea,
+                         'headposeb': headposeb, 'gazea': gazea, 'gazeb': gazeb}
 
     random.seed(6)
-    image_np, headpose_np, gaze_np, image_tensor, headpose_tensor, gaze_tensor = data_generator.make_data_tensor(train=False)
-    img_inputa = tf.slice(image_tensor, [0, 0, 0,0,0], [-1, num_classes * FLAGS.update_batch_size, -1,-1,-1])
-    img_inputb = tf.slice(image_tensor, [0, num_classes * FLAGS.update_batch_size, 0,0,0], [-1, -1, -1,-1,-1])
-    headposea = tf.slice(headpose_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
+    image_np, headpose_np, gaze_np, image_tensor, headpose_tensor, gaze_tensor = data_generator.make_data_tensor(
+        train=False)
+    img_inputa = tf.slice(image_tensor, [0, 0, 0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1, -1, -1])
+    img_inputb = tf.slice(image_tensor, [0, num_classes * FLAGS.update_batch_size, 0, 0, 0], [-1, -1, -1, -1, -1])
+    headposea = tf.slice(headpose_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
     headposeb = tf.slice(headpose_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
-    gazea = tf.slice(gaze_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
+    gazea = tf.slice(gaze_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
     gazeb = tf.slice(gaze_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
 
-    eval_np = [image_np, headpose_np,  gaze_np]
+    eval_np = [image_np, headpose_np, gaze_np]
     metaval_input_tensors = {'img_inputa': img_inputa, 'img_inputb': img_inputb,
-                             'headposea': headposea, 'headposeb': headposeb,'gazea': gazea, 'gazeb': gazeb}
+                             'headposea': headposea, 'headposeb': headposeb, 'gazea': gazea, 'gazeb': gazeb}
 
     model = MAMLGAZE(dim_input, dim_output, test_num_updates=test_num_updates)
 
-    if FLAGS.train:
-        model.construct_model(input_tensors=input_tensors, prefix='metatrain_')
+    model.construct_model(input_tensors=input_tensors, prefix='metatrain_')
 
     model.construct_model(input_tensors=metaval_input_tensors, prefix='metaval_')
 
@@ -197,22 +185,16 @@ def main(argv):
 
     sess = tf.InteractiveSession()
 
-    if FLAGS.train == False:
-        # change to original meta batch size when loading model.
-        FLAGS.meta_batch_size = orig_meta_batch_size
-
     if FLAGS.train_update_batch_size == -1:
         FLAGS.train_update_batch_size = FLAGS.update_batch_size
     if FLAGS.train_update_lr == -1:
         FLAGS.train_update_lr = FLAGS.update_lr
 
-    # exp_string = 'gaze_'+'.mbs_'+str(FLAGS.meta_batch_size) + '.ubs_' + str(FLAGS.train_update_batch_size)\
-    #              + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
-
-    exp_string = 'gaze_' + '.mbs_' + str(16) + '.ubs_' + str(FLAGS.train_update_batch_size) \
+    exp_string = 'gaze_'+'times_'+str(i)+'.mbs_'+str(FLAGS.meta_batch_size) + '.ubs_' + str(FLAGS.train_update_batch_size)\
                  + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
+
     if FLAGS.fc_filters:
-        exp_string += 'fc1_' + str(FLAGS.fc_filters[0])+'fc2_'+str(FLAGS.fc_filters[1])
+        exp_string += 'fc1_' + str(FLAGS.fc_filters[0]) + 'fc2_' + str(FLAGS.fc_filters[1])
     if FLAGS.stop_grad:
         exp_string += 'stopgrad'
     if FLAGS.baseline:
@@ -229,20 +211,14 @@ def main(argv):
     resume_itr = 0
     tf.global_variables_initializer().run()
     if FLAGS.train:
-        iterator=[data_generator.train_iterator_op, data_generator.eval_iterator_op]
-        feed_dict={data_generator.train_img_data: train_np[0],
-                   data_generator.train_headpose_data: train_np[1],
-                   data_generator.train_gaze_data: train_np[2],
-                   data_generator.eval_img_data: eval_np[0],
-                   data_generator.eval_headpose_data: eval_np[1],
-                   data_generator.eval_gaze_data: eval_np[2]}
-    else:
-        iterator = [data_generator.eval_iterator_op]
-        feed_dict={data_generator.eval_img_data: eval_np[0],
-                   data_generator.eval_headpose_data: eval_np[1],
-                   data_generator.eval_gaze_data: eval_np[2]}
-    sess.run(iterator,feed_dict)
-
+        iterator = [data_generator.train_iterator_op, data_generator.eval_iterator_op]
+        feed_dict = {data_generator.train_img_data: train_np[0],
+                     data_generator.train_headpose_data: train_np[1],
+                     data_generator.train_gaze_data: train_np[2],
+                     data_generator.eval_img_data: eval_np[0],
+                     data_generator.eval_headpose_data: eval_np[1],
+                     data_generator.eval_gaze_data: eval_np[2]}
+    sess.run(iterator, feed_dict)
 
     # show image
     # for i in range(5):
@@ -265,13 +241,126 @@ def main(argv):
             model_file = model_file[:model_file.index('model')] + 'model' + str(FLAGS.test_iter)
         if model_file:
             ind1 = model_file.index('model')
-            resume_itr = int(model_file[ind1+5:])
+            resume_itr = int(model_file[ind1 + 5:])
             print("Restoring model weights from " + model_file)
             saver.restore(sess, model_file)
-    if FLAGS.train:
-        train(model, saver, sess, exp_string, data_generator, train_np,eval_np,feed_dict,resume_itr)
+    train(model, saver, sess, exp_string, data_generator, train_np, eval_np, feed_dict, resume_itr)
+    sess.close()
+
+def testing(train_list,test_list,i):
+
+    K.clear_session()
+    test_num_updates = 10
+
+    orig_meta_batch_size = FLAGS.meta_batch_size
+    FLAGS.meta_batch_size = 1
+    # always use meta batch size of 1 when testing.
+    data_generator = DataGenerator(FLAGS.update_batch_size * 2, FLAGS.meta_batch_size, train_list, test_list)
+
+    dim_output = data_generator.dim_output
+    dim_input = data_generator.dim_input
+    num_classes = data_generator.num_classes
+    random.seed(6)
+    image_np, headpose_np, gaze_np, image_tensor, headpose_tensor, gaze_tensor = data_generator.make_data_tensor(train=False)
+    img_inputa = tf.slice(image_tensor, [0, 0, 0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1, -1, -1])
+    img_inputb = tf.slice(image_tensor, [0, num_classes * FLAGS.update_batch_size, 0, 0, 0], [-1, -1, -1, -1, -1])
+    headposea = tf.slice(headpose_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
+    headposeb = tf.slice(headpose_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
+    gazea = tf.slice(gaze_tensor, [0, 0, 0], [-1, num_classes * FLAGS.update_batch_size, -1])
+    gazeb = tf.slice(gaze_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
+
+    eval_np = [image_np, headpose_np, gaze_np]
+    metaval_input_tensors = {'img_inputa': img_inputa, 'img_inputb': img_inputb,
+                             'headposea': headposea, 'headposeb': headposeb, 'gazea': gazea, 'gazeb': gazeb}
+
+    model = MAMLGAZE(dim_input, dim_output, test_num_updates=test_num_updates)
+
+    model.construct_model(input_tensors=metaval_input_tensors, prefix='metaval_')
+
+    model.summ_op = tf.summary.merge_all()
+
+    saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES), max_to_keep=10)
+
+    sess = tf.InteractiveSession()
+
+    FLAGS.meta_batch_size = orig_meta_batch_size
+
+    if FLAGS.train_update_batch_size == -1:
+        FLAGS.train_update_batch_size = FLAGS.update_batch_size
+    if FLAGS.train_update_lr == -1:
+        FLAGS.train_update_lr = FLAGS.update_lr
+
+    exp_string = 'gaze_'+'times_'+str(i)+'.mbs_'+str(FLAGS.meta_batch_size) + '.ubs_' + str(FLAGS.train_update_batch_size)\
+                 + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
+
+    if FLAGS.fc_filters:
+        exp_string += 'fc1_' + str(FLAGS.fc_filters[0]) + 'fc2_' + str(FLAGS.fc_filters[1])
+    if FLAGS.stop_grad:
+        exp_string += 'stopgrad'
+    if FLAGS.baseline:
+        exp_string += FLAGS.baseline
+    if FLAGS.norm == 'batch_norm':
+        exp_string += 'batchnorm'
+    elif FLAGS.norm == 'layer_norm':
+        exp_string += 'layernorm'
+    elif FLAGS.norm == 'None':
+        exp_string += 'nonorm'
     else:
-        test(model, saver, sess, exp_string, data_generator,feed_dict, test_num_updates)
+        print('Norm setting not recognized.')
+
+    resume_itr = 0
+    tf.global_variables_initializer().run()
+    iterator = [data_generator.eval_iterator_op]
+    feed_dict = {data_generator.eval_img_data: eval_np[0],
+                 data_generator.eval_headpose_data: eval_np[1],
+                 data_generator.eval_gaze_data: eval_np[2]}
+    sess.run(iterator, feed_dict)
+    exp_string = 'gaze_times_0.mbs_16.ubs_10.numstep5.updatelr0.001fc1_256fc2_128batchnorm'
+    model_file = tf.train.latest_checkpoint(FLAGS.logdir + '/' + exp_string)
+    if FLAGS.test_iter > 0:
+        model_file = model_file[:model_file.index('model')] + 'model' + str(FLAGS.test_iter)
+    if model_file:
+        ind1 = model_file.index('model')
+        resume_itr = int(model_file[ind1 + 5:])
+        print("Restoring model weights from " + model_file)
+        saver.restore(sess, model_file)
+    result=test(model, saver, sess, exp_string, data_generator, feed_dict, test_num_updates)
+    sess.close()
+    return result
+def main(argv):
+    file_list=[]
+    for _ in os.listdir(FLAGS.MPII):
+        if ".mat" in _:
+            file_list.append(os.path.join(FLAGS.MPII,_))
+    scores_list=[]
+    # for i in range(5):
+    i=0
+    train_list=file_list.copy()
+    test_list = file_list[i]
+    train_list.remove(file_list[i])
+    if FLAGS.train:
+        print('---------training {} start'.format(i))
+        training(train_list,test_list,i)
+        # with Pool(1) as pool:
+        #     pool.apply(func=training,args=(FLAGS,train_list,test_list,i))
+    else:
+        print('---------testing {} start '.format(i))
+        # with Pool(1) as pool:
+        #     result=pool.apply(func=testing,args=(FLAGS,train_list,test_list,i))
+        result=testing(train_list,test_list,i)
+        scores_list.append(result[0])
+    train_lists=None
+    test_list=None
+    gc.collect()
+    if not FLAGS.train:
+        out_filename = FLAGS.logdir + '/' + 'leave_one_out_test.txt'
+        with open(out_filename, 'w') as f:
+            print("Overall accuracy : "+str(np.mean(scores_list))+' +- '+str(np.std(scores_list)))
+            f.write("Overall accuracy : "+str(np.mean(scores_list))+' +- '+str(np.std(scores_list))+'\n')
+
+            for index,accuracy in enumerate(scores_list):
+                print("subject %d : %f " % (index,accuracy))
+                f.write("subject %d : %f\n" % (index,accuracy))
 
 if __name__ == "__main__":
     app.run(main)

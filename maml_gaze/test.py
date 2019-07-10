@@ -33,14 +33,4 @@ import os
 # with tf.Session() as sess:
 #     for i in range(10):
 #         print(sess.run(el))
-"""
-Usage Instructions:
-    10-shot sinusoid:
-        python main.py --datasource=sinusoid --logdir=logs/sine/ --metatrain_iterations=70000 --norm=None --update_batch_size=10
 
-    5-way, 1-shot omniglot:
-        python main.py --datasource=omniglot --metatrain_iterations=60000 --meta_batch_size=32 --update_batch_size=1 --update_lr=0.4 --num_updates=1 --logdir=logs/omniglot5way/
-
-    10-shot gaze:
-        python main.py --metatrain_iterations=10000 --meta_batch_size=32 --update_batch_size=10 --update_lr=0.001 --num_updates=1 --logdir=logs/MPIIgaze/
-"""

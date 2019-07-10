@@ -76,15 +76,15 @@ class MAMLGAZE:
 
                 grads = tf.gradients(task_lossa, list(weights.values()))
                 # every task sample in meta learning, accumulation should be 0
-                # accumulation = dict(zip(weights.keys(), [tf.Variable(0.0) for i in range(len(weights.keys()))]))
+                accumulation = dict(zip(weights.keys(), [tf.Variable(0.0) for i in range(len(weights.keys()))]))
 
                 if FLAGS.stop_grad:
                     grads = [tf.stop_gradient(grad) for grad in grads]
                 gradients = dict(zip(weights.keys(), grads))
-                fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*gradients[key] for key in weights.keys()]))
-                # for key in weights.keys():
-                #     accumulation[key]=FLAGS.momentum * accumulation[key] + gradients[key]
-                # fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*accumulation[key] for key in weights.keys()]))
+                # fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*gradients[key] for key in weights.keys()]))
+                for key in weights.keys():
+                    accumulation[key]=FLAGS.momentum * accumulation[key] + gradients[key]
+                fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*accumulation[key] for key in weights.keys()]))
 
                 output = self.network(img_inputb,headposeb, untrain_weights,fast_weights, reuse=True)
                 task_outputbs.append(output)
@@ -96,10 +96,10 @@ class MAMLGAZE:
                     if FLAGS.stop_grad:
                         grads = [tf.stop_gradient(grad) for grad in grads]
                     gradients = dict(zip(fast_weights.keys(), grads))
-                    fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*gradients[key] for key in fast_weights.keys()]))
-                    # for key in fast_weights.keys():
-                    #     accumulation[key] = FLAGS.momentum * accumulation[key] + gradients[key]
-                    # fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*accumulation[key] for key in fast_weights.keys()]))
+                    # fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*gradients[key] for key in fast_weights.keys()]))
+                    for key in fast_weights.keys():
+                        accumulation[key] = FLAGS.momentum * accumulation[key] + gradients[key]
+                    fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*accumulation[key] for key in fast_weights.keys()]))
 
                     output = self.network(img_inputb,headposeb, untrain_weights,fast_weights, reuse=True)
                     task_outputbs.append(output)
@@ -192,26 +192,26 @@ class MAMLGAZE:
         untrain_weights['conv3_3b'] = tf.get_variable(name='conv3_3b', trainable=conv_trainable, shape=data_dict['conv3_3'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv3_3'][1]))
 
-        untrain_weights['conv4_1w'] = tf.get_variable(name='conv4_1w', trainable=conv_trainable,shape=data_dict['conv4_1'][0].shape,
+        untrain_weights['conv4_1w'] = tf.get_variable(name='conv4_1w', trainable=select_trainable,shape=data_dict['conv4_1'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_1'][0]))
-        untrain_weights['conv4_1b'] = tf.get_variable(name='conv4_1b', trainable=conv_trainable, shape=data_dict['conv4_1'][1].shape,
+        untrain_weights['conv4_1b'] = tf.get_variable(name='conv4_1b', trainable=select_trainable, shape=data_dict['conv4_1'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_1'][1]))
-        untrain_weights['conv4_2w'] = tf.get_variable(name='conv4_2w', trainable=conv_trainable,shape=data_dict['conv4_2'][0].shape,
+        untrain_weights['conv4_2w'] = tf.get_variable(name='conv4_2w', trainable=select_trainable,shape=data_dict['conv4_2'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_2'][0]))
-        untrain_weights['conv4_2b'] = tf.get_variable(name='conv4_2b', trainable=conv_trainable,shape=data_dict['conv4_2'][1].shape,
+        untrain_weights['conv4_2b'] = tf.get_variable(name='conv4_2b', trainable=select_trainable,shape=data_dict['conv4_2'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_2'][1]))
-        untrain_weights['conv4_3w'] = tf.get_variable(name='conv4_3w', trainable=conv_trainable,shape=data_dict['conv4_3'][0].shape,
+        untrain_weights['conv4_3w'] = tf.get_variable(name='conv4_3w', trainable=select_trainable,shape=data_dict['conv4_3'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_3'][0]))
-        untrain_weights['conv4_3b'] = tf.get_variable(name='conv4_3b', trainable=conv_trainable,shape=data_dict['conv4_3'][1].shape,
+        untrain_weights['conv4_3b'] = tf.get_variable(name='conv4_3b', trainable=select_trainable,shape=data_dict['conv4_3'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv4_3'][1]))
 
-        untrain_weights['conv5_1w'] = tf.get_variable(name='conv5_1w', trainable=conv_trainable,shape=data_dict['conv5_1'][0].shape,
+        untrain_weights['conv5_1w'] = tf.get_variable(name='conv5_1w', trainable=select_trainable,shape=data_dict['conv5_1'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv5_1'][0]))
-        untrain_weights['conv5_1b'] = tf.get_variable(name='conv5_1b', trainable=conv_trainable,shape=data_dict['conv5_1'][1].shape,
+        untrain_weights['conv5_1b'] = tf.get_variable(name='conv5_1b', trainable=select_trainable,shape=data_dict['conv5_1'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv5_1'][1]))
-        untrain_weights['conv5_2w'] = tf.get_variable(name='conv5_2w', trainable=conv_trainable,shape=data_dict['conv5_2'][0].shape,
+        untrain_weights['conv5_2w'] = tf.get_variable(name='conv5_2w', trainable=select_trainable,shape=data_dict['conv5_2'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv5_2'][0]))
-        untrain_weights['conv5_2b'] = tf.get_variable(name='conv5_2b', trainable=conv_trainable,shape=data_dict['conv5_2'][1].shape,
+        untrain_weights['conv5_2b'] = tf.get_variable(name='conv5_2b', trainable=select_trainable,shape=data_dict['conv5_2'][1].shape,
                                               initializer=tf.constant_initializer(data_dict['conv5_2'][1]))
         weights['conv5_3w'] = tf.get_variable(name='conv5_3w', trainable=select_trainable,shape=data_dict['conv5_3'][0].shape,
                                               initializer=tf.constant_initializer(data_dict['conv5_3'][0]))
