@@ -20,7 +20,7 @@ class MAMLGAZE:
         self.dim_input = dim_input
         self.dim_output = dim_output
         self.update_lr = FLAGS.update_lr
-        self.meta_lr = FLAGS.meta_lr
+        self.meta_lr = tf.placeholder_with_default(FLAGS.meta_lr,())
         self.test_num_updates = test_num_updates
         self.fcsize = FLAGS.fc_filters
         self.network = self.vgg16
@@ -47,10 +47,10 @@ class MAMLGAZE:
         with tf.variable_scope('model', reuse=None) as training_scope:
             if 'weights' in dir(self):
                 training_scope.reuse_variables()
-                weights = self.weights
+                untrain_weights,weights =  self.untrain_weights,self.weights
             else:
                 # Define the weights
-                self.weights = weights = self.construct_weights()
+                self.untrain_weights,self.weights = untrain_weights,weights = self.construct_weights()
 
             # outputbs[i] and lossesb[i] is the output and loss after i+1 gradient updates
             lossesa, outputas, lossesb, outputbs = [], [], [], []
@@ -66,7 +66,7 @@ class MAMLGAZE:
                 img_inputa,img_inputb,headposea,headposeb,gazea,gazeb = inp
                 task_outputbs, task_lossesb,task_accuraciesb = [], [], []
 
-                task_outputa = self.network(img_inputa,headposea,weights,reuse=reuse)
+                task_outputa = self.network(img_inputa,headposea,untrain_weights,weights,reuse=reuse)
                 task_lossa = self.loss_func(task_outputa, gazea)
 
                 # test tf.Graph memory usage
@@ -75,22 +75,33 @@ class MAMLGAZE:
                 #     print(1)
 
                 grads = tf.gradients(task_lossa, list(weights.values()))
+                # every task sample in meta learning, accumulation should be 0
+                # accumulation = dict(zip(weights.keys(), [tf.Variable(0.0) for i in range(len(weights.keys()))]))
+
                 if FLAGS.stop_grad:
                     grads = [tf.stop_gradient(grad) for grad in grads]
                 gradients = dict(zip(weights.keys(), grads))
                 fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*gradients[key] for key in weights.keys()]))
-                output = self.network(img_inputb,headposeb, fast_weights, reuse=True)
+                # for key in weights.keys():
+                #     accumulation[key]=FLAGS.momentum * accumulation[key] + gradients[key]
+                # fast_weights = dict(zip(weights.keys(), [weights[key] - self.update_lr*accumulation[key] for key in weights.keys()]))
+
+                output = self.network(img_inputb,headposeb, untrain_weights,fast_weights, reuse=True)
                 task_outputbs.append(output)
                 task_lossesb.append(self.loss_func(output, gazeb))
 
                 for j in range(num_updates - 1):
-                    loss = self.loss_func(self.network(img_inputa,headposea, fast_weights, reuse=True), gazea)
+                    loss = self.loss_func(self.network(img_inputa,headposea,untrain_weights,fast_weights, reuse=True), gazea)
                     grads = tf.gradients(loss, list(fast_weights.values()))
                     if FLAGS.stop_grad:
                         grads = [tf.stop_gradient(grad) for grad in grads]
                     gradients = dict(zip(fast_weights.keys(), grads))
                     fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*gradients[key] for key in fast_weights.keys()]))
-                    output = self.network(img_inputb,headposeb, fast_weights, reuse=True)
+                    # for key in fast_weights.keys():
+                    #     accumulation[key] = FLAGS.momentum * accumulation[key] + gradients[key]
+                    # fast_weights = dict(zip(fast_weights.keys(), [fast_weights[key] - self.update_lr*accumulation[key] for key in fast_weights.keys()]))
+
+                    output = self.network(img_inputb,headposeb, untrain_weights,fast_weights, reuse=True)
                     task_outputbs.append(output)
                     task_lossesb.append(self.loss_func(output, gazeb))
                 task_output = [task_outputa, task_outputbs, task_lossa, task_lossesb]
@@ -142,29 +153,90 @@ class MAMLGAZE:
         tf.summary.scalar(prefix+'Post_update_accuracy_step_' + str(num_updates), total_accuracies2[num_updates-1])
 
     def construct_fc_weights(self):
+        untrain_weights={}
         weights={}
         fc_initializer = tf.contrib.layers.xavier_initializer(dtype=tf.float32)
-
-        weights={'fc6w':tf.get_variable('fc6_weights',[2*2*512,self.fcsize[0]],initializer=fc_initializer),
-                 'fc6b':tf.Variable(tf.zeros(self.fcsize[0]),name='fc6_biases'),
-                 'fc7w':tf.get_variable('fc7_weights',[self.fcsize[0]+2,self.fcsize[1]],initializer=fc_initializer),
-                 'fc7b':tf.Variable(tf.zeros(self.fcsize[1]),name='fc7_biases'),
-                 'fc8w':tf.get_variable('fc8_weights',[self.fcsize[1],2],initializer=fc_initializer),
-                 'fc8b':tf.Variable(tf.zeros(2),name='fc8_biases')
-                }
-        return weights
-    def vgg16(self,img_iput,headpose_input,weights,reuse):
-
         vgg16_npy_path='./data/vgg16.npy'
         data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
+        conv_trainable=False
+        select_trainable=True
+
+        untrain_weights['conv1_1w'] = tf.get_variable(name='conv1_1w', trainable=conv_trainable, shape=data_dict['conv1_1'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv1_1'][0]))
+        untrain_weights['conv1_1b'] = tf.get_variable(name='conv1_1b', trainable=conv_trainable, shape=data_dict['conv1_1'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv1_1'][1]))
+        untrain_weights['conv1_2w'] = tf.get_variable(name='conv1_2w', trainable=conv_trainable,shape=data_dict['conv1_2'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv1_2'][0]))
+        untrain_weights['conv1_2b'] = tf.get_variable(name='conv1_2b', trainable=conv_trainable,shape=data_dict['conv1_2'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv1_2'][1]))
+
+        untrain_weights['conv2_1w'] = tf.get_variable(name='conv2_1w', trainable=conv_trainable,shape=data_dict['conv2_1'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv2_1'][0]))
+        untrain_weights['conv2_1b'] = tf.get_variable(name='conv2_1b', trainable=conv_trainable, shape=data_dict['conv2_1'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv2_1'][1]))
+        untrain_weights['conv2_2w'] = tf.get_variable(name='conv2_2w', trainable=conv_trainable,shape=data_dict['conv2_2'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv2_2'][0]))
+        untrain_weights['conv2_2b'] = tf.get_variable(name='conv2_2b', trainable=conv_trainable,shape=data_dict['conv2_2'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv2_2'][1]))
+
+        untrain_weights['conv3_1w']=tf.get_variable(name='conv3_1w', trainable=conv_trainable, shape=data_dict['conv3_1'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_1'][0]))
+        untrain_weights['conv3_1b'] = tf.get_variable(name='conv3_1b', trainable=conv_trainable, shape=data_dict['conv3_1'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_1'][1]))
+        untrain_weights['conv3_2w'] = tf.get_variable(name='conv3_2w', trainable=conv_trainable,shape=data_dict['conv3_2'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_2'][0]))
+        untrain_weights['conv3_2b'] = tf.get_variable(name='conv3_2b', trainable=conv_trainable,shape=data_dict['conv3_2'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_2'][1]))
+        untrain_weights['conv3_3w'] = tf.get_variable(name='conv3_3w', trainable=conv_trainable,shape=data_dict['conv3_3'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_3'][0]))
+        untrain_weights['conv3_3b'] = tf.get_variable(name='conv3_3b', trainable=conv_trainable, shape=data_dict['conv3_3'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv3_3'][1]))
+
+        untrain_weights['conv4_1w'] = tf.get_variable(name='conv4_1w', trainable=conv_trainable,shape=data_dict['conv4_1'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_1'][0]))
+        untrain_weights['conv4_1b'] = tf.get_variable(name='conv4_1b', trainable=conv_trainable, shape=data_dict['conv4_1'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_1'][1]))
+        untrain_weights['conv4_2w'] = tf.get_variable(name='conv4_2w', trainable=conv_trainable,shape=data_dict['conv4_2'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_2'][0]))
+        untrain_weights['conv4_2b'] = tf.get_variable(name='conv4_2b', trainable=conv_trainable,shape=data_dict['conv4_2'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_2'][1]))
+        untrain_weights['conv4_3w'] = tf.get_variable(name='conv4_3w', trainable=conv_trainable,shape=data_dict['conv4_3'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_3'][0]))
+        untrain_weights['conv4_3b'] = tf.get_variable(name='conv4_3b', trainable=conv_trainable,shape=data_dict['conv4_3'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv4_3'][1]))
+
+        untrain_weights['conv5_1w'] = tf.get_variable(name='conv5_1w', trainable=conv_trainable,shape=data_dict['conv5_1'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_1'][0]))
+        untrain_weights['conv5_1b'] = tf.get_variable(name='conv5_1b', trainable=conv_trainable,shape=data_dict['conv5_1'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_1'][1]))
+        untrain_weights['conv5_2w'] = tf.get_variable(name='conv5_2w', trainable=conv_trainable,shape=data_dict['conv5_2'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_2'][0]))
+        untrain_weights['conv5_2b'] = tf.get_variable(name='conv5_2b', trainable=conv_trainable,shape=data_dict['conv5_2'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_2'][1]))
+        weights['conv5_3w'] = tf.get_variable(name='conv5_3w', trainable=select_trainable,shape=data_dict['conv5_3'][0].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_3'][0]))
+        weights['conv5_3b'] = tf.get_variable(name='conv5_3b', trainable=select_trainable, shape=data_dict['conv5_3'][1].shape,
+                                              initializer=tf.constant_initializer(data_dict['conv5_3'][1]))
+
+        weights['fc6w']=tf.get_variable('fc6_weights',[2*2*512,self.fcsize[0]],
+                                        trainable=select_trainable,initializer=fc_initializer)
+        weights['fc6b']=tf.Variable(tf.zeros(self.fcsize[0]),name='fc6_biases',trainable=select_trainable)
+        weights['fc7w']=tf.get_variable('fc7_weights',[self.fcsize[0]+2,self.fcsize[1]],
+                                        trainable=select_trainable,initializer=fc_initializer)
+        weights['fc7b']=tf.Variable(tf.zeros(self.fcsize[1]),name='fc7_biases',trainable=select_trainable)
+        weights['fc8w']=tf.get_variable('fc8_weights',[self.fcsize[1],2],
+                                        trainable=select_trainable,initializer=fc_initializer)
+        weights['fc8b']=tf.Variable(tf.zeros(2),name='fc8_biases',trainable=select_trainable)
+
+        return untrain_weights,weights
+
+    def vgg16(self,img_iput,headpose_input,untrain_weights,weights,reuse):
 
         def get_conv_filter(name):
             return tf.constant(data_dict[name][0], name="filter")
 
-
         def get_bias(name):
             return tf.constant(data_dict[name][1], name="biases")
-
 
         def get_fc_weight(name):
             return tf.constant(data_dict[name][0], name="weights")
@@ -175,28 +247,22 @@ class MAMLGAZE:
         def max_pool(bottom, name):
             return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
-        def conv_layer(bottom, name):
+        def conv_layer(bottom, name, trainable=False):
             with tf.variable_scope(name,reuse=reuse):
-                # filt=tf.get_variable(name='filter', trainable=False,
-                #                            initializer=tf.constant(data_dict[name][0]))
-                filt = tf.get_variable(name='filter', trainable=False,shape=data_dict[name][0].shape,
-                                       initializer=tf.constant_initializer(data_dict[name][0]))
-
+                if trainable==False:
+                    filt=untrain_weights[name+'w']
+                    conv_biases = untrain_weights[name + 'b']
+                else:
+                    filt = weights[name + 'w']
+                    conv_biases = weights[name + 'b']
                 conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
-
-                # conv_biases=tf.get_variable(name='biases', trainable=False,
-                #                            initializer=tf.constant(data_dict[name][1]))
-                conv_biases = tf.get_variable(name='biases', trainable=False,shape=data_dict[name][1].shape,
-                                              initializer=tf.constant_initializer(data_dict[name][1]))
                 bias = tf.nn.bias_add(conv, conv_biases)
-
                 relu = tf.nn.relu(bias)
                 return relu
 
         def fc_layer2(bottom,name):
             with tf.variable_scope(name):
-                shape = bottom.get_shape().as_list()
-
+                # shape = bottom.get_shape().as_list()
                 # dim = 1
                 # for d in shape[1:]:
                 #     dim *= d
@@ -228,7 +294,7 @@ class MAMLGAZE:
 
         conv5_1 = conv_layer(pool4, "conv5_1")
         conv5_2 = conv_layer(conv5_1, "conv5_2")
-        conv5_3 = conv_layer(conv5_2, "conv5_3")
+        conv5_3 = conv_layer(conv5_2, "conv5_3",True)
         pool5 = max_pool(conv5_3, 'pool5')
 
         flatten=tf.layers.flatten(pool5)

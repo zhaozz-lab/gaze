@@ -7,7 +7,7 @@ Usage Instructions:
         python main.py --datasource=omniglot --metatrain_iterations=60000 --meta_batch_size=32 --update_batch_size=1 --update_lr=0.4 --num_updates=1 --logdir=logs/omniglot5way/
 
     10-shot gaze:
-        python main.py --datasource=omniglot --metatrain_iterations=10000 --meta_batch_size=32 --update_batch_size=10 --update_lr=0.001 --num_updates=1 --logdir=logs/MPIIgaze/
+        python main.py --metatrain_iterations=10000 --meta_batch_size=32 --update_batch_size=10 --update_lr=0.001 --num_updates=1 --logdir=logs/MPIIgaze/
 """
 import csv
 import os
@@ -26,11 +26,10 @@ from absl import app
 FLAGS = flags.FLAGS
 
 ## Dataset/method options
-flags.DEFINE_string('datasource', 'sinusoid', 'sinusoid or omniglot or miniimagenet')
 flags.DEFINE_integer('num_classes', 1, 'number of classes used in classification or number of subjects.')
 # oracle means task id is input (only suitable for sinusoid)
 flags.DEFINE_string('baseline', None, 'oracle, or None')
-flags.DEFINE_string('MPII','../../MPIIGaze/Evaluation Subset/','path of MPIIGaze dataset')
+flags.DEFINE_string('MPII','../../../Dataset/MPIIGaze/Evaluation Subset/','path of MPIIGaze dataset')
 
 ## Training options
 flags.DEFINE_integer('pretrain_iterations', 0, 'number of pre-training iterations.')
@@ -40,6 +39,7 @@ flags.DEFINE_float('meta_lr', 0.001, 'the base learning rate of the generator')
 flags.DEFINE_integer('update_batch_size', 5, 'number of examples used for inner gradient update (K for K-shot learning).')
 flags.DEFINE_float('update_lr', 1e-3, 'step size alpha for inner gradient update.') # 0.1 for omniglot
 flags.DEFINE_integer('num_updates', 1, 'number of inner gradient updates during training.')
+flags.DEFINE_float('momentum',0.9,'The momentum of momentum optimizer')
 
 ## Model options
 flags.DEFINE_string('norm', 'batch_norm', 'batch_norm, layer_norm, or None')
@@ -56,7 +56,7 @@ flags.DEFINE_bool('test_set', False, 'Set to true to test on the the test set, F
 flags.DEFINE_integer('train_update_batch_size', -1, 'number of examples used for gradient update during training (use if you want to test with a different number).')
 flags.DEFINE_float('train_update_lr', -1, 'value of inner gradient step step during training. (use if you want to test with a different value)') # 0.1 for omniglot
 
-def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, resume_itr=0):
+def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, feed_dict,resume_itr=0):
     SUMMARY_INTERVAL = 100
     SAVE_INTERVAL = 10000
     PRINT_INTERVAL = 100
@@ -70,9 +70,8 @@ def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, resum
 
     num_classes = data_generator.num_classes # for classification, 1 otherwise
 
-    for itr in range(resume_itr, FLAGS.pretrain_iterations + FLAGS.metatrain_iterations):
-        feed_dict = {}
-
+    for itr in range(resume_itr, FLAGS. pretrain_iterations + FLAGS.metatrain_iterations):
+        # feed_dict = {}
         if itr < FLAGS.pretrain_iterations:
             input_tensors = [model.pretrain_op]
         else:
@@ -81,18 +80,12 @@ def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, resum
         if (itr % SUMMARY_INTERVAL == 0 or itr % PRINT_INTERVAL == 0):
             input_tensors.extend([model.summ_op, model.total_loss1, model.total_losses2[FLAGS.num_updates-1],
                                   model.total_accuracy1, model.total_accuracies2[FLAGS.num_updates-1]])
-        result = sess.run(input_tensors,
-                          feed_dict={data_generator.train_img_data: train_np[0],
-                                     data_generator.train_headpose_data: train_np[1],
-                                     data_generator.train_gaze_data: train_np[2],
-                                     data_generator.eval_img_data: eval_np[0],
-                                     data_generator.eval_headpose_data: eval_np[1],
-                                     data_generator.eval_gaze_data: eval_np[2]})
+        result = sess.run(input_tensors,feed_dict=feed_dict)
         if itr % SUMMARY_INTERVAL == 0:
-            prelosses.append(result[-2])
+            prelosses.append(result[-4])
             if FLAGS.log:
                 train_writer.add_summary(result[1], itr)
-            postlosses.append(result[-1])
+            postlosses.append(result[-3])
 
         if (itr!=0) and itr % PRINT_INTERVAL == 0:
             if itr < FLAGS.pretrain_iterations:
@@ -107,21 +100,14 @@ def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, resum
             saver.save(sess, FLAGS.logdir + '/' + exp_string + '/model' + str(itr))
 
         if (itr!=0) and itr % TEST_PRINT_INTERVAL == 0 :
-            feed_dict = {}
             input_tensors = [model.metaval_total_accuracy1, model.metaval_total_accuracies2[FLAGS.num_updates-1], model.summ_op]
 
-            result = sess.run(input_tensors,
-                              feed_dict={data_generator.train_img_data: train_np[0],
-                                         data_generator.train_headpose_data: train_np[1],
-                                         data_generator.train_gaze_data: train_np[2],
-                                         data_generator.eval_img_data: eval_np[0],
-                                         data_generator.eval_headpose_data: eval_np[1],
-                                         data_generator.eval_gaze_data: eval_np[2]})
+            result = sess.run(input_tensors,feed_dict=feed_dict)
             print('Validation results: preaccuracy: ' + str(result[0]) + ', postaccuracy: ' + str(result[1]))
 
     saver.save(sess, FLAGS.logdir + '/' + exp_string +  '/model' + str(itr))
 
-def test(model, saver, sess, exp_string, data_generator, test_num_updates=None):
+def test(model, saver, sess, exp_string, data_generator, feed_dict, test_num_updates=None):
     num_classes = data_generator.num_classes # for classification, 1 otherwise
 
     np.random.seed(1)
@@ -129,29 +115,24 @@ def test(model, saver, sess, exp_string, data_generator, test_num_updates=None):
 
     metaval_accuracies = []
 
-    for _ in range(10):
-        feed_dict = {}
-        feed_dict = {model.meta_lr : 0.0}
-        result = sess.run([model.metaval_total_accuracy1] + model.metaval_total_accuracies2, feed_dict)
+    for _ in range(len(data_generator.num_total_batches)):
+        temp={model.meta_lr: 0.0}
+        feed_dict.update(temp)
+        result = sess.run([model.metaval_total_accuracies2], feed_dict=feed_dict)
 
         metaval_accuracies.append(result)
 
-    metaval_accuracies = np.array(metaval_accuracies)
-    means = np.mean(metaval_accuracies, 0)
-    stds = np.std(metaval_accuracies, 0)
+    metaval_accuracies = np.squeeze(np.array(metaval_accuracies))
+    means = np.mean(metaval_accuracies,axis=0)
+    stds = np.std(metaval_accuracies,axis=0)
 
     print('Mean validation accuracy/loss, stddev, and confidence intervals')
     print((means, stds))
 
-    out_filename = FLAGS.logdir +'/'+ exp_string + '/' + 'test_gaze' + str(FLAGS.update_batch_size) + '_stepsize' + str(FLAGS.update_lr) + '.csv'
-    out_pkl = FLAGS.logdir +'/'+ exp_string + '/' + 'test_gaze' + str(FLAGS.update_batch_size) + '_stepsize' + str(FLAGS.update_lr) + '.pkl'
-    with open(out_pkl, 'wb') as f:
-        pickle.dump({'mses': metaval_accuracies}, f)
-    with open(out_filename, 'w') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow(['update'+str(i) for i in range(len(means))])
-        writer.writerow(means)
-        writer.writerow(stds)
+    out_filename = FLAGS.logdir +'/'+ exp_string + '/' + 'test_gaze' + str(FLAGS.update_batch_size) + '_stepsize' + str(FLAGS.update_lr) + '.txt'
+    with open(out_filename, 'a') as f:
+        for index,_ in enumerate(means):
+            f.write("accuracy %d : %f\n" % (index,_))
 
 def main(argv):
     file_list=[]
@@ -197,7 +178,7 @@ def main(argv):
     headposea = tf.slice(headpose_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
     headposeb = tf.slice(headpose_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
     gazea = tf.slice(gaze_tensor, [0,0,0], [-1,num_classes*FLAGS.update_batch_size, -1])
-    gazeb = tf.slice(gaze_tensor, [0, num_classes * FLAGS.update_batch_size, 0    ], [-1, -1, -1])
+    gazeb = tf.slice(gaze_tensor, [0, num_classes * FLAGS.update_batch_size, 0], [-1, -1, -1])
 
     eval_np = [image_np, headpose_np,  gaze_np]
     metaval_input_tensors = {'img_inputa': img_inputa, 'img_inputb': img_inputb,
@@ -225,8 +206,11 @@ def main(argv):
     if FLAGS.train_update_lr == -1:
         FLAGS.train_update_lr = FLAGS.update_lr
 
-    exp_string = 'gaze_'+'.mbs_'+str(FLAGS.meta_batch_size) + '.ubs_' + str(FLAGS.train_update_batch_size) + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
+    # exp_string = 'gaze_'+'.mbs_'+str(FLAGS.meta_batch_size) + '.ubs_' + str(FLAGS.train_update_batch_size)\
+    #              + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
 
+    exp_string = 'gaze_' + '.mbs_' + str(16) + '.ubs_' + str(FLAGS.train_update_batch_size) \
+                 + '.numstep' + str(FLAGS.num_updates) + '.updatelr' + str(FLAGS.train_update_lr)
     if FLAGS.fc_filters:
         exp_string += 'fc1_' + str(FLAGS.fc_filters[0])+'fc2_'+str(FLAGS.fc_filters[1])
     if FLAGS.stop_grad:
@@ -244,13 +228,21 @@ def main(argv):
 
     resume_itr = 0
     tf.global_variables_initializer().run()
-    sess.run([data_generator.train_iterator_op, data_generator.eval_iterator_op],
-             feed_dict={data_generator.train_img_data: train_np[0],
-                        data_generator.train_headpose_data: train_np[1],
-                        data_generator.train_gaze_data: train_np[2],
-                        data_generator.eval_img_data: eval_np[0],
-                        data_generator.eval_headpose_data: eval_np[1],
-                        data_generator.eval_gaze_data: eval_np[2]})
+    if FLAGS.train:
+        iterator=[data_generator.train_iterator_op, data_generator.eval_iterator_op]
+        feed_dict={data_generator.train_img_data: train_np[0],
+                   data_generator.train_headpose_data: train_np[1],
+                   data_generator.train_gaze_data: train_np[2],
+                   data_generator.eval_img_data: eval_np[0],
+                   data_generator.eval_headpose_data: eval_np[1],
+                   data_generator.eval_gaze_data: eval_np[2]}
+    else:
+        iterator = [data_generator.eval_iterator_op]
+        feed_dict={data_generator.eval_img_data: eval_np[0],
+                   data_generator.eval_headpose_data: eval_np[1],
+                   data_generator.eval_gaze_data: eval_np[2]}
+    sess.run(iterator,feed_dict)
+
 
     # show image
     # for i in range(5):
@@ -267,7 +259,6 @@ def main(argv):
     # plt.imshow(test2)
     # plt.show()
 
-
     if FLAGS.resume or not FLAGS.train:
         model_file = tf.train.latest_checkpoint(FLAGS.logdir + '/' + exp_string)
         if FLAGS.test_iter > 0:
@@ -278,9 +269,9 @@ def main(argv):
             print("Restoring model weights from " + model_file)
             saver.restore(sess, model_file)
     if FLAGS.train:
-        train(model, saver, sess, exp_string, data_generator, train_np,eval_np,resume_itr)
+        train(model, saver, sess, exp_string, data_generator, train_np,eval_np,feed_dict,resume_itr)
     else:
-        test(model, saver, sess, exp_string, data_generator, test_num_updates)
+        test(model, saver, sess, exp_string, data_generator,feed_dict, test_num_updates)
 
 if __name__ == "__main__":
     app.run(main)

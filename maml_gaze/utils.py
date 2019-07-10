@@ -44,7 +44,7 @@ def get_normalized_image(raw_image, norm_type):
     return reshaped_image
 def angle_loss(label,pred):
     # return tf.reduce_mean(tf.square(label-pred),axis=-1)
-    return tf.reduce_sum(tf.square(label-pred),axis=-1)
+    return tf.reduce_sum(tf.square(label-pred))
 
 def pose2dir(headpose):
     headpose = [cv.Rodrigues(p)[0] for p in headpose]

@@ -73,10 +73,10 @@ class DataGenerator(object):
         if train:
             folders = self.metatrain_character_folders
             # number of tasks, not number of meta-iterations. (divide by metabatch size to measure)
-            num_total_batches = 240000
+            self.num_total_batches =num_total_batches= 240000
         else:
             folders = self.metaval_character_folders
-            num_total_batches = 512
+            self.num_total_batches=num_total_batches = 512
         if type(folders) != list:
             folders=[folders]
         print("Reading .mat file")
