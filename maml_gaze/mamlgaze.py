@@ -21,6 +21,7 @@ class MAMLGAZE:
         self.dim_output = dim_output
         self.update_lr = FLAGS.update_lr
         self.meta_lr = tf.placeholder_with_default(FLAGS.meta_lr,())
+        self.global_step=tf.placeholder_with_default(0,())
         self.test_num_updates = test_num_updates
         self.fcsize = FLAGS.fc_filters
         self.network = self.vgg16
@@ -130,10 +131,11 @@ class MAMLGAZE:
             self.outputas, self.outputbs = outputas, outputbs
             self.total_accuracy1 = total_accuracy1 = tf.reduce_sum(accuraciesa) / tf.to_float(FLAGS.meta_batch_size)
             self.total_accuracies2 = total_accuracies2 = [tf.reduce_sum(accuraciesb[j]) / tf.to_float(FLAGS.meta_batch_size) for j in range(num_updates)]
-            self.pretrain_op = tf.train.AdamOptimizer(self.meta_lr).minimize(total_loss1)
-
+            learning_rate = tf.train.exponential_decay(FLAGS.meta_lr, global_step=self.global_step,
+                                                       decay_steps=10, decay_rate=0.98, staircase=False)
+            self.pretrain_op = tf.train.AdamOptimizer(learning_rate).minimize(total_loss1)
             if FLAGS.metatrain_iterations > 0:
-                optimizer = tf.train.AdamOptimizer(self.meta_lr)
+                optimizer = tf.train.AdamOptimizer(learning_rate)
                 self.gvs = gvs = optimizer.compute_gradients(self.total_losses2[FLAGS.num_updates-1])
                 self.metatrain_op = optimizer.apply_gradients(gvs)
         else:

@@ -33,6 +33,7 @@ flags.DEFINE_integer('num_classes', 1, 'number of classes used in classification
 # oracle means task id is input (only suitable for sinusoid)
 flags.DEFINE_string('baseline', None, 'oracle, or None')
 flags.DEFINE_string('MPII','../../../Dataset/MPIIGaze/Evaluation Subset/','path of MPIIGaze dataset')
+# flags.DEFINE_string('MPII','/home/leo/Desktop/Dataset/MPIIGaze/Evaluation Subset/','path of MPIIGaze dataset')
 
 ## Training options
 flags.DEFINE_integer('pretrain_iterations', 0, 'number of pre-training iterations.')
@@ -48,6 +49,7 @@ flags.DEFINE_float('momentum',0.9,'The momentum of momentum optimizer')
 flags.DEFINE_string('norm', 'batch_norm', 'batch_norm, layer_norm, or None')
 flags.DEFINE_list('fc_filters', [256,128], 'number of Full connected layer neurons')
 flags.DEFINE_bool('stop_grad', False, 'if True, do not use second derivatives in meta-optimization (for speed)')
+flags.DEFINE_bool('learning_decay',True,'if true, leanring rate will decay as the training processes')
 
 ## Logging, saving, and testing options
 flags.DEFINE_bool('log', True, 'if false, do not log summaries, for debugging code.')
@@ -61,10 +63,9 @@ flags.DEFINE_float('train_update_lr', -1, 'value of inner gradient step step dur
 
 def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, feed_dict,resume_itr=0):
     SUMMARY_INTERVAL = 100
-    SAVE_INTERVAL = 2500
+    SAVE_INTERVAL = 1000
     PRINT_INTERVAL = 100
     TEST_PRINT_INTERVAL = PRINT_INTERVAL*5
-
     if FLAGS.log:
         # train_writer = tf.summary.FileWriter(FLAGS.logdir + '/' + exp_string, sess.graph)
         train_writer = tf.summary.FileWriter(FLAGS.logdir + '/' + exp_string)
@@ -83,7 +84,11 @@ def train(model, saver, sess, exp_string, data_generator,train_np,eval_np, feed_
         if (itr % SUMMARY_INTERVAL == 0 or itr % PRINT_INTERVAL == 0):
             input_tensors.extend([model.summ_op, model.total_loss1, model.total_losses2[FLAGS.num_updates-1],
                                   model.total_accuracy1, model.total_accuracies2[FLAGS.num_updates-1]])
-        result = sess.run(input_tensors,feed_dict=feed_dict)
+        if FLAGS.learning_decay:
+            feed_dict[model.global_step]=0
+            result = sess.run(input_tensors, feed_dict=feed_dict)
+        else:
+            result = sess.run(input_tensors,feed_dict=feed_dict)
         if itr % SUMMARY_INTERVAL == 0:
             prelosses.append(result[-4])
             if FLAGS.log:
@@ -118,7 +123,7 @@ def test(model, saver, sess, exp_string, data_generator, feed_dict, test_num_upd
 
     metaval_accuracies = []
 
-    for _ in range(FLAGS.num_updates):
+    for _ in range(data_generator.num_total_batches):
         temp={model.meta_lr: 0.0}
         feed_dict.update(temp)
         result = sess.run([model.metaval_total_accuracies2], feed_dict=feed_dict)
@@ -315,7 +320,6 @@ def testing(train_list,test_list,i):
                  data_generator.eval_headpose_data: eval_np[1],
                  data_generator.eval_gaze_data: eval_np[2]}
     sess.run(iterator, feed_dict)
-    exp_string = 'gaze_times_0.mbs_16.ubs_10.numstep5.updatelr0.001fc1_256fc2_128batchnorm'
     model_file = tf.train.latest_checkpoint(FLAGS.logdir + '/' + exp_string)
     if FLAGS.test_iter > 0:
         model_file = model_file[:model_file.index('model')] + 'model' + str(FLAGS.test_iter)
@@ -333,22 +337,22 @@ def main(argv):
         if ".mat" in _:
             file_list.append(os.path.join(FLAGS.MPII,_))
     scores_list=[]
-    # for i in range(5):
-    i=0
-    train_list=file_list.copy()
-    test_list = file_list[i]
-    train_list.remove(file_list[i])
-    if FLAGS.train:
-        print('---------training {} start'.format(i))
-        training(train_list,test_list,i)
-        # with Pool(1) as pool:
-        #     pool.apply(func=training,args=(FLAGS,train_list,test_list,i))
-    else:
-        print('---------testing {} start '.format(i))
-        # with Pool(1) as pool:
-        #     result=pool.apply(func=testing,args=(FLAGS,train_list,test_list,i))
-        result=testing(train_list,test_list,i)
-        scores_list.append(result[0])
+    for i in range(5):
+        i=4
+        train_list=file_list.copy()
+        test_list = file_list[i]
+        train_list.remove(file_list[i])
+        if FLAGS.train:
+            print('---------training {} start'.format(i))
+            training(train_list,test_list,i)
+            # with Pool(1) as pool:
+            #     pool.apply(func=training,args=(FLAGS,train_list,test_list,i))
+        else:
+            print('---------testing {} start '.format(i))
+            # with Pool(1) as pool:
+            #     result=pool.apply(func=testing,args=(FLAGS,train_list,test_list,i))
+            result=testing(train_list,test_list,i)
+            scores_list.append(result[0])
     train_lists=None
     test_list=None
     gc.collect()

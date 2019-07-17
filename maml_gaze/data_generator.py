@@ -38,7 +38,7 @@ class DataGenerator(object):
         else:
             self.metaval_character_folders = test_list
 
-    def readmat(self,files,shuffle=False):
+    def readmat(self,files,shuffle=True):
         # read .mat file
         gazes_l = np.vstack([files[idx]['eval_data']['gazes_L'] for idx in range(len(files))])
         gazes_r = np.vstack([files[idx]['eval_data']['gazes_R'] for idx in range(len(files))])
@@ -46,21 +46,21 @@ class DataGenerator(object):
         headposes_r = np.vstack([files[idx]['eval_data']['headposes_R'] for idx in range(len(files))])
         images_l = np.vstack([files[idx]['eval_data']['imagesL'] for idx in range(len(files))])
         images_r = np.vstack([files[idx]['eval_data']['imagesR'] for idx in range(len(files))])
-        if shuffle:
-            shuffle_idx = np.arange(gazes_l.shape[0])
-            np.random.shuffle(shuffle_idx)
-            images_l = images_l[shuffle_idx]
-            images_r = images_r[shuffle_idx]
-            gazes_l = gazes_l[shuffle_idx]
-            gazes_r = gazes_r[shuffle_idx]
-            headposes_l = headposes_l[shuffle_idx]
-            headposes_r = headposes_r[shuffle_idx]
 
         tr_img = np.concatenate((images_l, images_r), axis=0)
         train_headposes = np.concatenate((headposes_l, headposes_r), axis=0)
         train_headposes = utils.pose2dir(train_headposes)
         train_gazes = np.concatenate((gazes_l, gazes_r), axis=0)
-        num_instances=tr_img.shape[0]
+        num_instances = tr_img.shape[0]
+
+        if shuffle:
+            np.random.seed(1)
+            shuffle_idx = np.arange(tr_img.shape[0])
+            np.random.shuffle(shuffle_idx)
+            tr_img = tr_img[shuffle_idx]
+            train_headposes = train_headposes[shuffle_idx]
+            train_gazes = train_gazes[shuffle_idx]
+
         train_images = np.zeros((num_instances, 36, 60, 3))
         for i in range(num_instances):
             train_images[i,:] = utils.get_normalized_image(tr_img[i,:], norm_type=self.norm_type)
